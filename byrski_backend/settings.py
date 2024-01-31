@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
 from pathlib import Path
+import datetime
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -37,7 +38,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'user'
+    'rest_framework',
+    'user',
 ]
 
 MIDDLEWARE = [
@@ -122,3 +124,22 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+APPID ='wx2b4fa660ea71d1a5'
+APPSECRET = 'c9811b45b61ecab06bf595101741eb0c'
+
+SECRET_KEY = 'd916dac1-e79a-11eb-a95c-14f6d8e4b681'
+
+# REST_FRAMEWORK = {
+#  'DEFAULT_AUTHENTICATION_CLASSES': [
+#   'rest_framework_simplejwt.authentication.JWTAuthentication',
+#  ],
+# }
+
+# ## 设置token的有效时长
+# SIMPLE_JWT={
+#     # token有效时长
+#     'ACCESS_TOKEN_LIFETIME': datetime.timedelta(days=1),
+#     # token刷新后的有效时间
+#     'REFRESH_TOKEN_LIFETIME': datetime.timedelta(days=14),
+# }

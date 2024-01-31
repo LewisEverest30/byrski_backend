@@ -16,8 +16,15 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from . import views
+from user.views import login, area, school, user_info, check_student
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('login', login.as_view()),
+    path('get_area', area.as_view()),
+    path('get_school', school.as_view()),
+    path('get_user_info', user_info.as_view()),
+    path('checkstudentidentity', check_student.as_view()),
+    # path('checkstudentidentity', check_student),
+
 ]
