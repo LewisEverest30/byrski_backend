@@ -117,7 +117,7 @@ class check_student(APIView):
             newtoken = jsrespon['access_token']
             exp_in = jsrespon['expires_in']
             
-            print('###expire',newtoken)
+            # print('###expire',newtoken)
 
             at_obj.access_token = newtoken
             at_obj.expire_time = datetime.datetime.now()+datetime.timedelta(seconds=exp_in)
@@ -125,7 +125,7 @@ class check_student(APIView):
             return Response({'ret':0, 'acesstoken':model_to_dict(at_obj)})
         
         else:
-            print('!!!expire')
+            # print('!!!expire')
             return Response({'ret':0, 'acesstoken':model_to_dict(at_obj)})
 
 

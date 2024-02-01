@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'django_crontab',
     'user',
 ]
 
@@ -130,16 +131,6 @@ APPSECRET = 'c9811b45b61ecab06bf595101741eb0c'
 
 SECRET_KEY = 'd916dac1-e79a-11eb-a95c-14f6d8e4b681'
 
-# REST_FRAMEWORK = {
-#  'DEFAULT_AUTHENTICATION_CLASSES': [
-#   'rest_framework_simplejwt.authentication.JWTAuthentication',
-#  ],
-# }
-
-# ## 设置token的有效时长
-# SIMPLE_JWT={
-#     # token有效时长
-#     'ACCESS_TOKEN_LIFETIME': datetime.timedelta(days=1),
-#     # token刷新后的有效时间
-#     'REFRESH_TOKEN_LIFETIME': datetime.timedelta(days=14),
-# }
+CRONJOBS = [
+    ('* * /1 * * *', 'user.cron.update_access_token'),  # 每1h运行一次
+]
