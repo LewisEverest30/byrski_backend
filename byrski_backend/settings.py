@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 import datetime
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -132,5 +133,5 @@ APPSECRET = 'c9811b45b61ecab06bf595101741eb0c'
 SECRET_KEY = 'd916dac1-e79a-11eb-a95c-14f6d8e4b681'
 
 CRONJOBS = [
-    ('* * /1 * * *', 'user.cron.update_access_token'),  # 每1h运行一次
+    ('* * /1 * * *', 'user.cron.update_access_token', '>> ' + os.path.join(os.path.dirname(BASE_DIR), 'logs/crontab.log')),  # 每1h运行一次
 ]

@@ -10,7 +10,6 @@ from rest_framework.views import APIView
 from user.models import User, Area, School, Accesstoken
 from user.models import UserSerializer, SchoolSerializer
 from .auth import MyJWTAuthentication, create_token
-from rest_framework_simplejwt.tokens import RefreshToken
 
 # AccessToken = ''
 
@@ -106,10 +105,7 @@ class check_student(APIView):
             exp_in = jsrespon['expires_in']
             newat = Accesstoken.objects.create(access_token=newtoken, expire_time=datetime.datetime.now()+datetime.timedelta(seconds=exp_in))
             return Response({'ret':0, 'acesstoken':model_to_dict(newat)})
-        
-        
-        print(datetime.datetime.utcnow().replace(tzinfo=pytz.timezone('UTC')))
-        print(at_obj.expire_time)
+                
         if at_obj.expire_time.replace(tzinfo=None) <= datetime.datetime.utcnow():
             # access token 过期了
             response = requests.get(self.getaccesstoken_url)  # 向腾讯服务器发送请求
@@ -117,16 +113,17 @@ class check_student(APIView):
             newtoken = jsrespon['access_token']
             exp_in = jsrespon['expires_in']
             
-            # print('###expire',newtoken)
-
             at_obj.access_token = newtoken
             at_obj.expire_time = datetime.datetime.now()+datetime.timedelta(seconds=exp_in)
             at_obj.save()
             return Response({'ret':0, 'acesstoken':model_to_dict(at_obj)})
         
         else:
-            # print('!!!expire')
-            return Response({'ret':0, 'acesstoken':model_to_dict(at_obj)})
+            print(str(model_to_dict(at_obj)))
+            return Response({'ret':0})
+        
+        # stu_response = requests.get(self.checkstudent_url_mod.)  # 向腾讯服务器发送请求
+
 
 
 
