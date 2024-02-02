@@ -6,13 +6,8 @@ from django.conf import settings
 getaccesstoken_url = 'https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={}&secret={}'.format(settings.APPID, settings.APPSECRET)
 
 def update_access_token():
-    try:
-        response = requests.get(getaccesstoken_url)  # 向腾讯服务器发送请求
-        jsrespon = response.json()
-    except Exception as e:
-        print(repr(e))
-        return
-
+    response = requests.get(getaccesstoken_url)  # 向腾讯服务器发送请求
+    jsrespon = response.json()
     try:
         newtoken = jsrespon['access_token']
         exp_in = jsrespon['expires_in']

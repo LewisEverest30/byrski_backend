@@ -12,6 +12,7 @@ def create_token(user, expdays=7):
     }
     payload = {
         'userid': user.id,
+        'openid': user.openid,
         'exp': datetime.datetime.utcnow() + datetime.timedelta(days=expdays)
     }
     # print(payload)
@@ -29,7 +30,7 @@ class MyJWTAuthentication(BaseAuthentication):
             # print(payload)
         except Exception as e:
             print(repr(e))
-            raise AuthenticationFailed({'error': 'Token Authentication Failed'})
+            raise AuthenticationFailed({'ret': -1, 'errmsg': 'Token Authentication Failed'})
 
         return payload, token
 
