@@ -135,14 +135,14 @@ class user_info(APIView):
 class area(APIView):
     def get(self,request,*args,**kwargs):
         all_areas = Area.objects.all().values()
-        return Response({'ret': 0, 'areas': list(all_areas)})
+        return Response({'ret': 0, 'area': list(all_areas)})
 
 
 class school(APIView):
     def get(self,request,*args,**kwargs):
         all_schools = School.objects.all()
         serializer = SchoolSerializer(instance=all_schools, many=True)
-        return Response({'ret': 0, 'areas': list(serializer.data)})
+        return Response({'ret': 0, 'school': list(serializer.data)})
         # return Response({'ret': 0, 'areas': list(all_schools)})
 
 

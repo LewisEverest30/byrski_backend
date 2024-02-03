@@ -51,7 +51,7 @@ class User(models.Model):
     openid = models.CharField(verbose_name='openid', max_length=28, unique=True, db_index=True)
 
     name = models.CharField(verbose_name='姓名', max_length=15)
-    school = models.ForeignKey(verbose_name='学校_id', to=School, on_delete=models.CASCADE)
+    school = models.ForeignKey(verbose_name='学校', to=School, on_delete=models.CASCADE)
     age = models.IntegerField(verbose_name='年龄')
     phone = models.CharField(verbose_name='手机号', max_length=11)
     # wxaccount = models.CharField(verbose_name='微信号', max_length=22)
