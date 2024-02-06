@@ -62,6 +62,7 @@ def set_activity_expire():
     # 将到期的活动设为不可报名
     try:
         acti_objs = Activity.objects.filter(signup_ddl_d__lt = datetime.date.today(), registration_status=True)
+        acti_objs_id = [i.id for i in acti_objs]
         acti_objs.update(registration_status=False)
     except Exception as e:
         print(str(datetime.datetime.now()), repr(e))
@@ -77,29 +78,35 @@ def set_activity_expire():
     for bust in bustypes:
         bustype_list.append(bust.passenger_num)
     bustype_list.sort(reverse=True)
-    
+    print(bustype_list)
+
     if len(bustype_list)!=2:
         print('bustype wrong!')
         return
     
     bus_big = bustype_list[0]
     bus_small = bustype_list[1]
+        
+    acti_objs = Activity.objects.filter(id__in=acti_objs_id)
 
-
+    print(acti_objs)
     for acti in acti_objs:
 
         busloc_info = Busloc.objects.filter(activity_id=acti.id).values('loc__area_id')
         areainfo = busloc_info.annotate(total_people_num=Sum("loc_peoplenum"))
 
+        print('100,',areainfo)
         for area in areainfo:
             area_id = area['loc__area_id']
             total_people_num = area['total_people_num']
 
             # 计算分配方法
             n_big, n_small = get_bus_allocation(bus_big, bus_small, total_people_num)
+            print(n_big, n_small)
 
             # 查找本次活动这些区的订单，按对应上车点的人数从高到低排序
             all_related_orders = Order.objects.filter(activity_id=acti.id, bus_loc__loc__area_id=area_id)
+            print('111', all_related_orders)
             if total_people_num != all_related_orders.count():
                 print ('wrong people num in line 105')
                 return

@@ -93,7 +93,7 @@ class Bus(models.Model):
     route = models.CharField(verbose_name='路线规划', max_length=500, null=True)
 
     def __str__(self) -> str:
-        return self.car_number
+        return str(self.car_number)
     
     class Meta:
         verbose_name = "大巴车"
@@ -105,6 +105,9 @@ class Bus_loc_time(models.Model):
     loc = models.ForeignKey(verbose_name='途径点', to=Busloc, on_delete=models.PROTECT)
     bus_loc_peoplenum = models.IntegerField(verbose_name='该点该车上车人数', default=0)
     time = models.DateTimeField(verbose_name='途径时间', null=True)
+
+    def __str__(self) -> str:
+        return str(self.bus)+str(self.loc)
 
     class Meta:
         verbose_name = "车-途径点-时间 对应关系"
