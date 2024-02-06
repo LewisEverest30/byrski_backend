@@ -22,7 +22,7 @@ class Activity(models.Model):
     duration_days = models.IntegerField(verbose_name='持续天数')
     notes = models.CharField(verbose_name='备注(不超过500字)', max_length=500, null=True, blank=True)
     price = models.IntegerField(verbose_name='价格')
-    need_rent = models.BooleanField(verbose_name='提供租赁雪具服务', default=False)
+    need_rent = models.BooleanField(verbose_name='提供租赁', default=False)
     target_participant_num = models.IntegerField(verbose_name='目标报名人数')
     current_participant_num = models.IntegerField(verbose_name='当前报名人数', default=0)
 

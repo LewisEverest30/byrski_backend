@@ -38,10 +38,10 @@ class ReadOnlyAdminMixin:
         return True
 
 
-class ActivityAdmin(admin.ModelAdmin):
+class ActivityAdmin(admin.ModelAdmin, ExportExcelMixin):
     list_display = ("id", "ski_resort", 'date_arrangement', 'duration_days', 'price', 'need_rent',
-                     'target_participant_num', 'current_participant_num', 'release_dt',
-                     'signup_ddl_d', 'registration_status', 'notes')
+                     'target_participant_num', 'current_participant_num', 'registration_status',
+                     'signup_ddl_d', 'release_dt', 'notes')
     actions = ['export_as_excel']
 
     list_filter = ("ski_resort", "release_dt", 'registration_status', 'signup_ddl_d')
@@ -64,19 +64,19 @@ class ActivityAdmin(admin.ModelAdmin):
     #     return obj.ski_resort.name if obj.ski_resort.name else ''
 
 
-class SkiresortAdmin(admin.ModelAdmin):
+class SkiresortAdmin(admin.ModelAdmin, ExportExcelMixin):
     list_display = ("id", "name", 'location')
     readonly_fields = ()
 
 
-class RentpriceAdmin(admin.ModelAdmin):
+class RentpriceAdmin(admin.ModelAdmin, ExportExcelMixin):
     list_display = ('id', 'ski_resort')
     readonly_fields = ()
     
     actions = ['export_as_excel']
 
 
-class RentorderAdmin(admin.ModelAdmin):
+class RentorderAdmin(admin.ModelAdmin, ExportExcelMixin):
     list_display = ('id', 'user', 'order', 'activity', 'duration_days', 'helmet', 'glasses', 'gloves',
                      'hippad', 'kneepad', 'wristpad', 'snowboard', 'skiboots', 'is_active')
     readonly_fields = ('user', 'order', 'activity', 'duration_days', 'helmet', 'glasses', 'gloves',
@@ -85,24 +85,24 @@ class RentorderAdmin(admin.ModelAdmin):
     actions = ['export_as_excel']
 
     list_filter = ("activity", 'is_active')
-    search_fields = ('user', 'order', 'activity')
+    search_fields = ('user__name', 'order__ordernumber', 'activity__ski_resort__name')
 
 
-class BusAdmin(admin.ModelAdmin):
+class BusAdmin(admin.ModelAdmin, ExportExcelMixin):
     list_display = ('activity', 'car_number', 'bus_peoplenum', 'route')
     readonly_fields = ('activity', 'bus_peoplenum')
 
     actions = ['export_as_excel']
 
 
-class Bus_loc_timeAdmin(admin.ModelAdmin):
+class Bus_loc_timeAdmin(admin.ModelAdmin, ExportExcelMixin):
     list_display = ("id", "bus", 'loc', 'bus_loc_peoplenum', 'time')
     readonly_fields = ()
 
     actions = ['export_as_excel']
 
 
-class BuslocAdmin(admin.ModelAdmin):
+class BuslocAdmin(admin.ModelAdmin, ExportExcelMixin):
     list_display = ("id", "activity", 'loc', 'loc_peoplenum')
 
     # readonly_fields = ['loc_peoplenum']
@@ -111,7 +111,7 @@ class BuslocAdmin(admin.ModelAdmin):
 
 
 
-class OrderAdmin(admin.ModelAdmin):
+class OrderAdmin(admin.ModelAdmin, ExportExcelMixin):
     list_display = ('id', "ordernumber", 'user', 'activity', 'need_rent',
                      'bus_loc', 'bus', 'bus_time', 'create_time', 'is_paid')
     # readonly_fields = ("ordernumber", 'user', 'activity', 'need_rent',
@@ -120,7 +120,7 @@ class OrderAdmin(admin.ModelAdmin):
     actions = ['export_as_excel']
 
     list_filter = ("activity", 'is_paid', 'bus_loc', 'need_rent')
-    search_fields = ('user', 'ordernumber', 'activity')
+    search_fields = ('user__name', 'ordernumber', 'activity__ski_resort__name', 'bus_loc__loc__campus')
 
 
 admin.site.register(Activity, ActivityAdmin)
