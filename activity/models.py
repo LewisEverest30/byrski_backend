@@ -93,7 +93,7 @@ class Bus(models.Model):
     route = models.CharField(verbose_name='路线规划', max_length=500, null=True)
 
     def __str__(self) -> str:
-        return str(self.id)+'_'+str(self.car_number)
+        return str(self.car_number) + ' ( id: ' + str(self.id) + ', 乘客数: ' + str(self.bus_peoplenum) + ')'
     
     class Meta:
         verbose_name = "大巴车"
@@ -107,7 +107,7 @@ class Bus_loc_time(models.Model):
     time = models.DateTimeField(verbose_name='途径时间', null=True)
 
     def __str__(self) -> str:
-        return str(self.bus)+'_'+str(self.loc)
+        return str(self.time)
 
     class Meta:
         verbose_name = "车-途径点-时间 对应关系"
@@ -186,6 +186,7 @@ class OrderSerializer(serializers.ModelSerializer):
     date_arrangement = serializers.CharField(source='activity.date_arrangement')
     bus = serializers.SerializerMethodField(method_name='getbus')
     bus_loc = serializers.CharField(source='bus_loc.loc.campus')
+    bus_time = serializers.SerializerMethodField(method_name='getbus_time')
 
     class Meta:
         model = Order
@@ -196,4 +197,10 @@ class OrderSerializer(serializers.ModelSerializer):
             return None
         else:
             return order.bus.car_number
+
+    def getbus_time(self, order):
+        if order.bus_time == None:
+            return None
+        else:
+            return order.bus_time.time
 
