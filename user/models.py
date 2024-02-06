@@ -14,6 +14,10 @@ class Area(models.Model):
     def __str__(self) -> str:
         return self.area_name
 
+    class Meta:
+        verbose_name = "地区"
+        verbose_name_plural = "地区"
+
 
 class School(models.Model):
     school_name = models.CharField(verbose_name='学校名称', max_length=50)
@@ -25,6 +29,9 @@ class School(models.Model):
     def __str__(self) -> str:
         return self.campus
 
+    class Meta:
+        verbose_name = "学校(校区)"
+        verbose_name_plural = "学校(校区)"
 
 
 class User(models.Model):
@@ -56,17 +63,17 @@ class User(models.Model):
     phone = models.CharField(verbose_name='手机号', max_length=11)
     # wxaccount = models.CharField(verbose_name='微信号', max_length=22)
 
-    gender = models.IntegerField(verbose_name='性别', choices=Gender_choices.choices, null=True)
-    height = models.IntegerField(verbose_name='身高(cm)', null=True)
-    weight = models.IntegerField(verbose_name='体重(kg)', null=True)
-    skiboots_size_1 = models.IntegerField(verbose_name='单板雪鞋尺码', null=True)
-    skiboots_size_2 = models.IntegerField(verbose_name='双板雪鞋尺码', null=True)
-    snowboard_size_1 = models.IntegerField(verbose_name='单板板长', null=True)
-    snowboard_size_2 = models.IntegerField(verbose_name='双板板长', null=True)
-    skipole_size = models.IntegerField(verbose_name='雪仗长度', null=True)
-    ski_level = models.IntegerField(verbose_name='滑雪水平', null=True, choices=SkiLevel_choices.choices)
-    ski_style = models.IntegerField(verbose_name='滑雪风格', null=True, choices=SkiStyle_choices.choices)
-    ski_board = models.IntegerField(verbose_name='单板or双板', null=True, choices=SkiBoard_choices.choices)
+    gender = models.IntegerField(verbose_name='性别', choices=Gender_choices.choices, null=True, blank=True)
+    height = models.IntegerField(verbose_name='身高(cm)', null=True, blank=True)
+    weight = models.IntegerField(verbose_name='体重(kg)', null=True, blank=True)
+    skiboots_size_1 = models.IntegerField(verbose_name='单板雪鞋尺码', null=True, blank=True)
+    skiboots_size_2 = models.IntegerField(verbose_name='双板雪鞋尺码', null=True, blank=True)
+    snowboard_size_1 = models.IntegerField(verbose_name='单板板长', null=True, blank=True)
+    snowboard_size_2 = models.IntegerField(verbose_name='双板板长', null=True, blank=True)
+    skipole_size = models.IntegerField(verbose_name='雪仗长度', null=True, blank=True)
+    ski_level = models.IntegerField(verbose_name='滑雪水平', null=True, choices=SkiLevel_choices.choices, blank=True)
+    ski_style = models.IntegerField(verbose_name='滑雪风格', null=True, choices=SkiStyle_choices.choices, blank=True)
+    ski_board = models.IntegerField(verbose_name='单板or双板', null=True, choices=SkiBoard_choices.choices, blank=True)
 
     is_student = models.BooleanField(verbose_name='是否通过学生认证', default=False)
     is_active = models.BooleanField(verbose_name='是否激活', default=True)
@@ -77,8 +84,22 @@ class User(models.Model):
     def __str__(self) -> str:
         return self.name+'_'+str(self.id)
 
+    class Meta:
+        verbose_name = "用户"
+        verbose_name_plural = "用户"
 
+
+class Bustype(models.Model):
+    passenger_num = models.IntegerField(verbose_name='可承载人数')
+
+    def __str__(self) -> str:
+        return '可承载'+str(self.passenger_num)+'人'
     
+    class Meta:
+        verbose_name = "大巴车类型(只支持两种类型)"
+        verbose_name_plural = "大巴车类型(只支持两种类型)"
+
+
 class UserSerializer(serializers.ModelSerializer):
     school = serializers.CharField(source='school.school_name')
     school_id = serializers.IntegerField(source='school.id')
