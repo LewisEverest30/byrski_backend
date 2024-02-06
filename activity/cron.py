@@ -90,7 +90,7 @@ def set_activity_expire():
     for bust in bustypes:
         bustype_list.append(bust.passenger_num)
     bustype_list.sort(reverse=True)
-    print(bustype_list)
+    # print(bustype_list)
 
     if len(bustype_list)!=2:
         print('bustype wrong!')
@@ -101,24 +101,24 @@ def set_activity_expire():
         
     acti_objs = Activity.objects.filter(id__in=acti_objs_id)
 
-    print(acti_objs)
+    # print(acti_objs)
     for acti in acti_objs:
         busloc_info = Busloc.objects.filter(activity_id=acti.id).values('loc__area_id')
         areainfo = busloc_info.annotate(total_people_num=Sum("loc_peoplenum"))
 
-        print('areainfo,',areainfo)
+        # print('areainfo,',areainfo)
         for area in areainfo:
-            print('area', area)
+            # print('area', area)
             area_id = area['loc__area_id']
             total_people_num = area['total_people_num']
 
             # 计算分配方法
             n_big, n_small = get_bus_allocation(bus_big, bus_small, total_people_num)
-            print('分配：', n_big, n_small)
+            # print('分配：', n_big, n_small)
 
             # 查找本次活动这些区的订单，按对应上车点的人数从高到低排序
             all_related_orders = Order.objects.filter(activity_id=acti.id, bus_loc__loc__area_id=area_id)
-            print('all_related_orders', all_related_orders)
+            # print('all_related_orders', all_related_orders)
             if total_people_num != all_related_orders.count():
                 print ('wrong people num in line 105')
                 return
