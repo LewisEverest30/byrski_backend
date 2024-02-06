@@ -11,6 +11,13 @@ def get_bus_allocation(big, small, people):
 
     if big >= 2*small:  # 大车承载人数超过了小车的两倍
         q, r = divmod(people, big)
+
+        if r==0:
+            n_big = q
+            n_small = 0
+            return (n_big, n_small)
+
+
         if r > small:
             n_big = q + 1
             n_small = 0
@@ -21,6 +28,11 @@ def get_bus_allocation(big, small, people):
         k = 2*small - big
         m = 3*small - 2*big
         q, r = divmod(people, big)
+
+        if r==0:
+            n_big = q
+            n_small = 0
+            return (n_big, n_small)
 
         if q == 1:
             if r <= k:
@@ -91,22 +103,22 @@ def set_activity_expire():
 
     print(acti_objs)
     for acti in acti_objs:
-
         busloc_info = Busloc.objects.filter(activity_id=acti.id).values('loc__area_id')
         areainfo = busloc_info.annotate(total_people_num=Sum("loc_peoplenum"))
 
-        print('100,',areainfo)
+        print('areainfo,',areainfo)
         for area in areainfo:
+            print('area', area)
             area_id = area['loc__area_id']
             total_people_num = area['total_people_num']
 
             # 计算分配方法
             n_big, n_small = get_bus_allocation(bus_big, bus_small, total_people_num)
-            print(n_big, n_small)
+            print('分配：', n_big, n_small)
 
             # 查找本次活动这些区的订单，按对应上车点的人数从高到低排序
             all_related_orders = Order.objects.filter(activity_id=acti.id, bus_loc__loc__area_id=area_id)
-            print('111', all_related_orders)
+            print('all_related_orders', all_related_orders)
             if total_people_num != all_related_orders.count():
                 print ('wrong people num in line 105')
                 return

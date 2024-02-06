@@ -89,9 +89,9 @@ class RentorderAdmin(admin.ModelAdmin, ExportExcelMixin):
 
 
 class BusAdmin(admin.ModelAdmin, ExportExcelMixin):
-    list_display = ('activity', 'car_number', 'bus_peoplenum', 'route')
+    list_display = ('id', 'activity', 'car_number', 'bus_peoplenum', 'route')
     readonly_fields = ('activity', 'bus_peoplenum')
-
+    list_display_links = ['activity']
     actions = ['export_as_excel']
 
 
