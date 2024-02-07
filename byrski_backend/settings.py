@@ -25,9 +25,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-oxe!%51+s^=qyi6v5+e54^s+nu+s*77pcr8x)w&a(4(r*4$o4p'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*', 'localhost', '127.0.0.1']
 
 
 # Application definition
@@ -81,8 +81,13 @@ WSGI_APPLICATION = 'byrski_backend.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'byrski',   # 数据库名
+        'USER': 'root',    # 数据库 用户名
+        'PASSWORD': '2543325972',# 数据库 用户密码
+        'HOST': '127.0.0.1', # 数据库服务主机名
+        'PORT': '3306',      # 数据库服务端口    }
+
     }
 }
 
@@ -135,5 +140,5 @@ SECRET_KEY = 'd916dac1-e79a-11eb-a95c-14f6d8e4b681'
 
 CRONJOBS = [
     ('* */1 * * *', 'user.cron.update_access_token', '>> ' + os.path.join(os.path.dirname(BASE_DIR), 'logs/update_access_token.log')),
-    ('30 22 * * *', 'activity.cron.set_activity_expire', '>> ' + os.path.join(os.path.dirname(BASE_DIR), 'logs/set_activity_expire.log')),
+    ('1 0 * * *', 'activity.cron.set_activity_expire', '>> ' + os.path.join(os.path.dirname(BASE_DIR), 'logs/set_activity_expire.log')), # 00:01
 ]
