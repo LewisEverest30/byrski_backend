@@ -139,7 +139,7 @@ APPSECRET = 'c9811b45b61ecab06bf595101741eb0c'
 SECRET_KEY = 'd916dac1-e79a-11eb-a95c-14f6d8e4b681'
 
 CRONJOBS = [
-    ('* */1 * * *', 'user.cron.update_access_token', '>> ' + os.path.join(os.path.dirname(BASE_DIR), 'logs/update_access_token.log')),
+    ('0 */1 * * *', 'user.cron.update_access_token', '>> ' + os.path.join(os.path.dirname(BASE_DIR), 'logs/update_access_token.log')),
     ('1 0 * * *', 'activity.cron.set_activity_expire', '>> ' + os.path.join(os.path.dirname(BASE_DIR), 'logs/set_activity_expire.log')), # 00:01
 ]
 
