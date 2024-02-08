@@ -83,8 +83,8 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'byrski',   # 数据库名
-        'USER': 'root',    # 数据库 用户名
-        'PASSWORD': '2543325972',# 数据库 用户密码
+        'USER': 'wsb',    # 数据库 用户名
+        'PASSWORD': 'wang13261910095',# 数据库 用户密码
         'HOST': '127.0.0.1', # 数据库服务主机名
         'PORT': '3306',      # 数据库服务端口    }
 
@@ -142,3 +142,5 @@ CRONJOBS = [
     ('* */1 * * *', 'user.cron.update_access_token', '>> ' + os.path.join(os.path.dirname(BASE_DIR), 'logs/update_access_token.log')),
     ('1 0 * * *', 'activity.cron.set_activity_expire', '>> ' + os.path.join(os.path.dirname(BASE_DIR), 'logs/set_activity_expire.log')), # 00:01
 ]
+
+STATIC_ROOT = '/home/lewis/byrski_backend_static/static'
