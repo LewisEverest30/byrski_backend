@@ -23,7 +23,7 @@ class School(models.Model):
     school_name = models.CharField(verbose_name='学校名称', max_length=50)
 
     campus = models.CharField(verbose_name='学校位置(学校名+校区)', max_length=150, unique=True)
-
+    busboardloc  =  models.CharField(verbose_name='上车点(学校名+校区+门)', max_length=150, null=True)
     area = models.ForeignKey(verbose_name='所在地区', to=Area, on_delete=models.CASCADE)
 
     def __str__(self) -> str:

@@ -59,10 +59,10 @@ class get_rentprice(APIView):
         ski_resort_id = info['ski_resort_id']
         try:
             activity = Rentprice.objects.get(ski_resort_id=ski_resort_id)
-            return Response({'ret': 0, 'activity': model_to_dict(activity)})
+            return Response({'ret': 0, 'rentprice': model_to_dict(activity)})
         except Exception as e:
             print(repr(e))
-            return Response({'ret': -1, 'activity': None})
+            return Response({'ret': -1, 'rentprice': None})
 
 
 class get_a_activity_order_by_activityid(APIView):  # 点到一个activity后先加载一下有没有对应的订单
@@ -275,12 +275,12 @@ class get_a_rent_order(APIView):  # 一个activity order对应的rent order
             rentorder_found = Rentorder.objects.get(user_id=userid, order_id=activity_order_id)
             
             if rentorder_found.activity.need_rent==False:
-                return Response({'ret': 3, 'errmsg': '不提供租赁', 'order': None})
+                return Response({'ret': 3, 'errmsg': '不提供租赁', 'rentorder': None})
 
-            return Response({'ret': 0, 'errmsg': None, 'order': model_to_dict(rentorder_found)})
+            return Response({'ret': 0, 'errmsg': None, 'rentorder': model_to_dict(rentorder_found)})
         except Exception as e:
             print(repr(e))
-            return Response({'ret': -1, 'errmsg': '租赁单不存在', 'order': None})
+            return Response({'ret': -1, 'errmsg': '租赁单不存在', 'rentorder': None})
 
 
 class cancel_rent_order(APIView):  # 一个activity order对应的rent order

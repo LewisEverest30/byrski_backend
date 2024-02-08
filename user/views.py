@@ -71,7 +71,7 @@ class login(APIView):
 
         user_found = User.objects.filter(openid=oid)  # users表中是否已有该用户
         if user_found.count() == 0:
-            return Response({'ret': -1, 'errmsg': '登录失败(未注册)', 'session_key': None, 'openid': None, 'token': None})
+            return Response({'ret': 1, 'errmsg': '登录失败(未注册)', 'session_key': None, 'openid': None, 'token': None})
         else:
             token = create_token(user_found[0])
             return Response({'ret': 0, 'errmsg': None, 'session_key': sessionkey, 'openid': oid, 'token': str(token)})
@@ -237,7 +237,7 @@ class update_user_ski_info(APIView):
                 user = User.objects.filter(id=userid).update(gender=gender, ski_board=ski_board, ski_level=ski_level,
                                                           ski_style=ski_style, height=height, weight=weight,
                                                           skiboots_size_1=skiboots_size, snowboard_size_1=snowboard_size)
-                return Response({'ret': 0, 'errmsg': '单板数据更新'})   
+                return Response({'ret': 0, 'errmsg': None})   
             else:
                 # 双板
                 try:

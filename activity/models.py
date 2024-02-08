@@ -174,7 +174,7 @@ class ActivitySerializer(serializers.ModelSerializer):
 
 
 class BuslocSerializer(serializers.ModelSerializer):
-    loc = serializers.CharField(source='loc.campus')
+    loc = serializers.CharField(source='loc.busboardloc')
     loc_id = serializers.IntegerField(source='loc.id')
     class Meta:
         model = Busloc
