@@ -70,7 +70,7 @@ def get_bus_allocation(big, small, people):
 
 
 def set_activity_expire():
-    
+    print ('-----', str(datetime.datetime.now()), '-----')
     # 将到期的活动设为不可报名
     try:
         acti_objs = Activity.objects.filter(signup_ddl_d__lt = datetime.date.today(), registration_status=True)
@@ -133,7 +133,7 @@ def set_activity_expire():
                 begin_index += bus_big
                 
                 # 创建一个新大巴
-                newbus = Bus.objects.create(activity_id=acti.id, bus_peoplenum=len(orderid_slice))
+                newbus = Bus.objects.create(activity_id=acti.id, bus_peoplenum=len(orderid_slice), max_people=bus_big)
 
                 buslocid_set = set()
                 # 遍历该大巴对应的订单
@@ -176,7 +176,7 @@ def set_activity_expire():
                 begin_index += bus_small
                 
                 # 创建一个新大巴
-                newbus = Bus.objects.create(activity_id=acti.id, bus_peoplenum=len(orderid_slice))
+                newbus = Bus.objects.create(activity_id=acti.id, bus_peoplenum=len(orderid_slice), max_people=bus_small)
 
                 buslocid_set = set()
                 # 遍历该大巴对应的订单

@@ -91,6 +91,7 @@ class Bus(models.Model):
     car_number = models.CharField(verbose_name='车牌号', null=True, max_length=10)
     bus_peoplenum = models.IntegerField(verbose_name='该车总人数', default=0)
     route = models.CharField(verbose_name='路线规划', max_length=500, null=True)
+    max_people = models.IntegerField(verbose_name='车型最大承载人数', null=True)
 
     def __str__(self) -> str:
         return str(self.car_number) + ' ( id: ' + str(self.id) + ', 乘客数: ' + str(self.bus_peoplenum) + ')'
