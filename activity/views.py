@@ -111,18 +111,31 @@ class get_all_activity_order(APIView):  # 一个用户的所有订单
             return Response({'ret': -1, 'order': None})
 
 
+def get_client_ip(request):
+
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[-1].strip()
+    else:
+        ip = request.META.get('REMOTE_ADDR')
+
+    return ip
+
 class create_activity_order(APIView):
     authentication_classes = [MyJWTAuthentication, ]
 
     def post(self,request,*args,**kwargs):
         userid = request.user['userid']
 
+        ip = get_client_ip(request)
+
         try:
             user = User.objects.get(id=userid)
-            if user.is_student==False:
-                return Response({'ret': 3, 'errmsg': '用户不合法', 'activity_order_id':None, 'ordernumber':None})
+            # if user.is_student==False:
+                # return Response({'ret': 3, 'errmsg': '用户不合法', 'activity_order_id':None, 'ordernumber':None})
         except:
-            return Response({'ret': 3, 'errmsg': '用户不合法', 'activity_order_id':None, 'ordernumber':None})
+            return Response({'ret': 3, 'errmsg': '用户不合法', 'activity_order_id':None, 'ordernumber':None, 'ip': ip})
 
         info = json.loads(request.body)
 
@@ -131,7 +144,7 @@ class create_activity_order(APIView):
 
             acti = Activity.objects.get(id=acti_id)
             if acti.registration_status==False:
-                    return Response({'ret': 2, 'errmsg': '已截止报名', 'activity_order_id':None, 'ordernumber':None})
+                    return Response({'ret': 2, 'errmsg': '已截止报名', 'activity_order_id':None, 'ordernumber':None, 'ip': ip})
 
             # need_rent = info['need_rent']
             bus_loc = info['bus_loc_id']
@@ -144,16 +157,16 @@ class create_activity_order(APIView):
                     neworder = Order.objects.create(ordernumber=ordernumber , user_id=userid, activity_id=acti_id, 
                                                   bus_loc_id=bus_loc)
                     
-                    return Response({'ret': 0, 'errmsg': None, 'activity_order_id':neworder.id, 'ordernumber':ordernumber})
+                    return Response({'ret': 0, 'errmsg': None, 'activity_order_id':neworder.id, 'ordernumber':ordernumber, 'ip': ip})
                 except Exception as e:
                     print(repr(e))
-                    return Response({'ret': -1, 'errmsg': '请检查提交的数据', 'activity_order_id':None, 'ordernumber':None})
+                    return Response({'ret': -1, 'errmsg': '请检查提交的数据', 'activity_order_id':None, 'ordernumber':None, 'ip': ip})
             else:
-                return Response({'ret': 1, 'errmsg': '订单已存在', 'activity_order_id':order_found[0].id, 'ordernumber':order_found[0].ordernumber})
+                return Response({'ret': 1, 'errmsg': '订单已存在', 'activity_order_id':order_found[0].id, 'ordernumber':order_found[0].ordernumber, 'ip': ip})
 
         except Exception as e:
             print(repr(e))
-            return Response({'ret': -1, 'errmsg': '请检查提交的数据', 'activity_order_id':None, 'ordernumber':None})
+            return Response({'ret': -1, 'errmsg': '请检查提交的数据', 'activity_order_id':None, 'ordernumber':None, 'ip': ip})
 
 
 class set_activity_order_paid(APIView):
