@@ -31,6 +31,10 @@ urlpatterns = [
         path('checkstudentidentity', check_student.as_view()),
     path('update_user_ski_info', update_user_ski_info.as_view()),
     path('update_user_basic_info', update_user_basic_info.as_view()),
+    
+    path('get_snowboard_size', get_skiboard_size.as_view()),
+    path('set_snowboard_size', set_skiboard_size.as_view()),
+
 
     path('get_activity_all', get_activity_all.as_view()),
     path('get_activity_active', get_activity_active.as_view()),
