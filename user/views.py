@@ -146,6 +146,7 @@ class school(APIView):
         # return Response({'ret': 0, 'areas': list(all_schools)})
 
 
+# https://developers.weixin.qq.com/miniprogram/dev/platform-capabilities/industry/student.html
 class check_student(APIView):
     authentication_classes = [MyJWTAuthentication, ]
 
