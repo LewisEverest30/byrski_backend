@@ -17,8 +17,8 @@ class get_area(APIView):
 
 class get_school(APIView):
     def get(self,request,*args,**kwargs):
-        all_schools = School.objects.all()
-        serializer = SchoolSerializer(instance=all_schools, many=True)
+        all_schools = BoardingLocTemplate.objects.all()
+        serializer = BoardingLocTemplateSerializer(instance=all_schools, many=True)
         return Response({'ret': 0, 'school': list(serializer.data)})
         # return Response({'ret': 0, 'areas': list(all_schools)})
 
@@ -28,10 +28,10 @@ class get_busloc(APIView):
         info = json.loads(request.body)
         try:
             acti_id = info['activity_id']
-            busloc = Busloc.objects.filter(activity_id=acti_id)
+            busloc = Boardingloc.objects.filter(activity_id=acti_id)
             if busloc.count() == 0:
                 return Response({'ret': -1, 'activity': None})
-            serializer = BuslocSerializer(instance=busloc, many=True)
+            serializer = BoardinglocSerializer(instance=busloc, many=True)
             return Response({'ret': 0, 'activity': list(serializer.data)})
         except Exception as e:
             print(repr(e))

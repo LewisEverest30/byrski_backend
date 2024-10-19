@@ -2,7 +2,7 @@ from openpyxl import Workbook
 from django.contrib import admin
 from django.http import HttpResponse
 from .models import *
-# Register your models here.
+
 
 # 导出Excel
 class ExportExcelMixin(object):
@@ -25,19 +25,36 @@ class ExportExcelMixin(object):
     export_as_excel.short_description = '导出Excel'
 
 
+
 class UserAdmin(admin.ModelAdmin, ExportExcelMixin):
-    list_display = ("id", "name", 'school', 'age', 'phone', 'gender', 'is_student', 'is_active')
-    readonly_fields = ()
+    list_display = ("id", "name", 'phone', 'gender', 'is_student', 'identity', 'is_active')
+    readonly_fields = ('phone', 'idnumber')
 
     list_display_links = ['name']
-    list_filter = ("school", "is_student", 'is_active')
+    list_filter = ("is_student", 'is_active', 'gender')
     search_fields = ("name", "phone")
     actions = ['export_as_excel']
 
     def has_delete_permission(self, request, obj=None):
         return False
 
-admin.site.register(Area)
-admin.site.register(School)
+
+class LeaderAdmin(admin.ModelAdmin, ExportExcelMixin):
+    list_display = ("id", "user_name", 'phone', 'is_active')
+    readonly_fields = ()
+
+    list_display_links = ['user_name']
+    list_filter = ()
+    search_fields = ("name", "phone")
+    actions = ['export_as_excel']
+
+    def user_name(self, obj):
+        if obj.user:
+            return obj.user.name
+        else:
+            return '-'
+
+
+
 admin.site.register(User, UserAdmin)
-admin.site.register(Bustype)
+admin.site.register(Leader, LeaderAdmin)

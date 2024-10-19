@@ -1,8 +1,8 @@
 import datetime
 from django.db.models import Sum
 from django.db.models import F
-from .models import Bus, Busloc, Bustype, Bus_loc_time
-from activity.models import Order, Activity
+from .models import Bus, Boardingloc, Bustype, Bus_boarding_time
+from activity.models import TicketOrder, Activity
 import datetime
 
 def get_bus_allocation(big, small, people):
@@ -81,7 +81,7 @@ def set_activity_expire():
     
     # 清除该活动的所有未付款订单
     for acti in acti_objs:
-        unpaid_orders = Order.objects.filter(activity_id=acti.id, is_paid=False)
+        unpaid_orders = TicketOrder.objects.filter(activity_id=acti.id, is_paid=False)
         unpaid_orders.delete()
 
     # 生成乘车信息
@@ -103,7 +103,7 @@ def set_activity_expire():
 
     # print(acti_objs)
     for acti in acti_objs:
-        busloc_info = Busloc.objects.filter(activity_id=acti.id).values('loc__area_id')
+        busloc_info = Boardingloc.objects.filter(activity_id=acti.id).values('loc__area_id')
         areainfo = busloc_info.annotate(total_people_num=Sum("loc_peoplenum"))
 
         # print('areainfo,',areainfo)
@@ -117,7 +117,7 @@ def set_activity_expire():
             # print('分配：', n_big, n_small)
 
             # 查找本次活动这些区的订单，按对应上车点的人数从高到低排序
-            all_related_orders = Order.objects.filter(activity_id=acti.id, bus_loc__loc__area_id=area_id)
+            all_related_orders = TicketOrder.objects.filter(activity_id=acti.id, bus_loc__loc__area_id=area_id)
             # print('all_related_orders', all_related_orders)
             if total_people_num != all_related_orders.count():
                 print ('wrong people num in line 105')
@@ -139,7 +139,7 @@ def set_activity_expire():
                 # 遍历该大巴对应的订单
                 for orderid in orderid_slice:
                     try:
-                        thisorder = Order.objects.get(id=orderid)
+                        thisorder = TicketOrder.objects.get(id=orderid)
                     except Exception as e:
                         print(repr(e))
                         return
@@ -147,7 +147,7 @@ def set_activity_expire():
                     if thisorder.bus_loc.id not in buslocid_set:
                         buslocid_set.add(thisorder.bus_loc.id)
                         # 这个bus中存在一个新loc，则新创建一个bus loc time对应
-                        newbusloctime = Bus_loc_time.objects.create(bus_id=newbus.id, loc_id=thisorder.bus_loc.id)
+                        newbusloctime = Bus_boarding_time.objects.create(bus_id=newbus.id, loc_id=thisorder.bus_loc.id)
                         # 补充订单信息，包括大巴车，大巴-上车点-时间对应
                         thisorder.bus_id = newbus.id
                         thisorder.bus_time_id = newbusloctime.id
@@ -157,7 +157,7 @@ def set_activity_expire():
                         newbusloctime.save()
                     else:
                         try:
-                            busloctime = Bus_loc_time.objects.get(bus_id=newbus.id, loc_id=thisorder.bus_loc.id)
+                            busloctime = Bus_boarding_time.objects.get(bus_id=newbus.id, loc_id=thisorder.bus_loc.id)
                             # 补充订单信息，包括大巴车，大巴-上车点-时间对应
                             thisorder.bus_id = newbus.id
                             thisorder.bus_time_id = busloctime.id
@@ -182,7 +182,7 @@ def set_activity_expire():
                 # 遍历该大巴对应的订单
                 for orderid in orderid_slice:
                     try:
-                        thisorder = Order.objects.get(id=orderid)
+                        thisorder = TicketOrder.objects.get(id=orderid)
                     except Exception as e:
                         print(repr(e))
                         return
@@ -190,7 +190,7 @@ def set_activity_expire():
                     if thisorder.bus_loc.id not in buslocid_set:
                         buslocid_set.add(thisorder.bus_loc.id)
                         # 这个bus中存在一个新loc，则新创建一个bus loc time对应
-                        newbusloctime = Bus_loc_time.objects.create(bus_id=newbus.id, loc_id=thisorder.bus_loc.id)
+                        newbusloctime = Bus_boarding_time.objects.create(bus_id=newbus.id, loc_id=thisorder.bus_loc.id)
                         # 补充订单信息，包括大巴车，大巴-上车点-时间对应
                         thisorder.bus_id = newbus.id
                         thisorder.bus_time_id = newbusloctime.id
@@ -200,7 +200,7 @@ def set_activity_expire():
                         newbusloctime.save()
                     else:
                         try:
-                            busloctime = Bus_loc_time.objects.get(bus_id=newbus.id, loc_id=thisorder.bus_loc.id)
+                            busloctime = Bus_boarding_time.objects.get(bus_id=newbus.id, loc_id=thisorder.bus_loc.id)
                             # 补充订单信息，包括大巴车，大巴-上车点-时间对应
                             thisorder.bus_id = newbus.id
                             thisorder.bus_time_id = busloctime.id

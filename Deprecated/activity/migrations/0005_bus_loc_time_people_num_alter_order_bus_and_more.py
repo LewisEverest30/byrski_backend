@@ -28,7 +28,7 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, to='activity.bus_loc_time', verbose_name='上车时间'),
         ),
         migrations.CreateModel(
-            name='Busloc',
+            name='Boardingloc',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('people_num', models.IntegerField(default=0, verbose_name='人数')),

@@ -1,37 +1,17 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
+from django.utils import timezone
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
+
 
 
 class Accesstoken(models.Model):
     access_token = models.CharField(max_length=1024, unique=True)
     expire_time = models.DateTimeField()
 
-
-class Area(models.Model):
-    area_name = models.CharField('地区名称', max_length=100, unique=True)
-
-    def __str__(self) -> str:
-        return self.area_name
-
-    class Meta:
-        verbose_name = "地区"
-        verbose_name_plural = "地区"
-
-
-class School(models.Model):
-    school_name = models.CharField(verbose_name='学校名称', max_length=50)
-
-    campus = models.CharField(verbose_name='学校位置(学校名+校区)', max_length=150, unique=True)
-    busboardloc  =  models.CharField(verbose_name='上车点(学校名+校区+门)', max_length=150, null=True)
-    area = models.ForeignKey(verbose_name='所在地区', to=Area, on_delete=models.CASCADE)
-
-    def __str__(self) -> str:
-        return self.campus
-
-    class Meta:
-        verbose_name = "学校(校区)"
-        verbose_name_plural = "学校(校区)"
 
 
 class User(models.Model):
@@ -46,6 +26,7 @@ class User(models.Model):
         Kehua = 1, _('刻滑')
         Pinghua = 2, _('平花')
         Gongyuan = 3, _('公园')
+        yexue = 4, _('野雪')
     
     class SkiBoard_choices(models.IntegerChoices):
         Dan = 0, _('单板')
@@ -54,50 +35,73 @@ class User(models.Model):
     class Gender_choices(models.IntegerChoices):
         male = 0, _('男')
         female = 1, _('女')
+
+    class Identity_choices(models.IntegerChoices):
+        normal = 0, _('普通用户')
+        leader = 1, _('领队')
     
     openid = models.CharField(verbose_name='openid', max_length=28, unique=True, db_index=True)
 
-    name = models.CharField(verbose_name='姓名', max_length=15)
-    school = models.ForeignKey(verbose_name='学校', to=School, on_delete=models.CASCADE)
-    age = models.IntegerField(verbose_name='年龄')
-    phone = models.CharField(verbose_name='手机号', max_length=11)
+    name = models.CharField(verbose_name='姓名', max_length=15, null=True, blank=True)
+    # school = models.CharField(verbose_name='学校', max_length=50, null=True, blank=True)
+    # age = models.IntegerField(verbose_name='年龄', null=True, blank=True)
+    phone = models.CharField(verbose_name='手机号', max_length=11, null=True, blank=True)
     # wxaccount = models.CharField(verbose_name='微信号', max_length=22)
+    idnumber = models.CharField(verbose_name='身份证号', max_length=18, null=True, blank=True)
+    profile = models.ImageField(verbose_name='头像', null=True, blank=True,
+                            upload_to='user/profile/')
+    points = models.IntegerField(verbose_name='积分', null=True, blank=True, default=0)
+
+    identity = models.IntegerField(verbose_name='身份', null=False, blank=False, choices=Identity_choices.choices, default=0)
+    intro = models.TextField(verbose_name='个人介绍', null=True, blank=True)
+    is_student = models.BooleanField(verbose_name='是否通过学生认证', default=False, null=False, blank=False)
+    is_active = models.BooleanField(verbose_name='是否激活', default=True, null=False, blank=False)
+
+    ski_board = models.IntegerField(verbose_name='单板or双板', null=True, choices=SkiBoard_choices.choices, blank=True)
+    ski_level = models.IntegerField(verbose_name='滑雪水平', null=True, choices=SkiLevel_choices.choices, blank=True)
+    ski_favor = models.IntegerField(verbose_name='滑雪喜好', null=True, choices=SkiStyle_choices.choices, blank=True)
 
     gender = models.IntegerField(verbose_name='性别', choices=Gender_choices.choices, null=True, blank=True)
     height = models.IntegerField(verbose_name='身高(cm)', null=True, blank=True)
     weight = models.IntegerField(verbose_name='体重(kg)', null=True, blank=True)
-    skiboots_size_1 = models.IntegerField(verbose_name='单板雪鞋尺码', null=True, blank=True)
-    skiboots_size_2 = models.IntegerField(verbose_name='双板雪鞋尺码', null=True, blank=True)
+    foot_length = models.IntegerField(verbose_name='足长(mm)', null=True, blank=True)
+    skiboots_size = models.IntegerField(verbose_name='鞋码', null=True, blank=True)
+    # skiboots_size_1 = models.IntegerField(verbose_name='单板雪鞋尺码', null=True, blank=True)
+    # skiboots_size_2 = models.IntegerField(verbose_name='双板雪鞋尺码', null=True, blank=True)
     snowboard_size_1 = models.IntegerField(verbose_name='单板板长', null=True, blank=True)
     snowboard_size_2 = models.IntegerField(verbose_name='双板板长', null=True, blank=True)
+    snowboard_hardness = models.IntegerField(verbose_name='雪鞋硬度', null=True, blank=True)
     skipole_size = models.IntegerField(verbose_name='雪仗长度', null=True, blank=True)
-    ski_level = models.IntegerField(verbose_name='滑雪水平', null=True, choices=SkiLevel_choices.choices, blank=True)
-    ski_style = models.IntegerField(verbose_name='滑雪风格', null=True, choices=SkiStyle_choices.choices, blank=True)
-    ski_board = models.IntegerField(verbose_name='单板or双板', null=True, choices=SkiBoard_choices.choices, blank=True)
-
-    is_student = models.BooleanField(verbose_name='是否通过学生认证', default=False)
-    is_active = models.BooleanField(verbose_name='是否激活', default=True)
 
     create_time = models.DateTimeField(verbose_name='创建时间', auto_now_add=True) 
     update_time = models.DateTimeField(verbose_name='修改时间', auto_now=True)
 
     def __str__(self) -> str:
-        return self.name+'_'+str(self.id)
+        return f'{self.name}-#{self.id}'
 
     class Meta:
         verbose_name = "用户"
         verbose_name_plural = "用户"
 
 
-class Bustype(models.Model):
-    passenger_num = models.IntegerField(verbose_name='可承载人数')
+class Leader(models.Model):
+    user = models.ForeignKey(verbose_name='用户', to=User, on_delete=models.CASCADE)
+    intro = models.TextField(verbose_name='领队介绍', null=True, blank=True)
+    phone = models.CharField(verbose_name='手机号', max_length=11, null=True, blank=True)
+    profile = models.ImageField(verbose_name='照片', null=True, blank=True,
+                            upload_to='user/profile/')
+    leadtimes = models.IntegerField(verbose_name='参与活动次数', default=0)
+    
+    is_active = models.BooleanField(verbose_name='是否激活', default=True, null=False, blank=False)
+    create_time = models.DateTimeField(verbose_name='创建时间', auto_now_add=True) 
+    update_time = models.DateTimeField(verbose_name='修改时间', auto_now=True)
 
     def __str__(self) -> str:
-        return '可承载'+str(self.passenger_num)+'人'
-    
+        return self.user.name
+
     class Meta:
-        verbose_name = "大巴车类型(只支持两种类型)"
-        verbose_name_plural = "大巴车类型(只支持两种类型)"
+        verbose_name = "领队"
+        verbose_name_plural = "领队"
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -108,10 +112,63 @@ class UserSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class SchoolSerializer(serializers.ModelSerializer):
-    area = serializers.CharField(source='area.area_name')
-    area_id = serializers.IntegerField(source='area.id')
+class UserSerializerSki(serializers.ModelSerializer):
     class Meta:
-        model = School
-        fields = '__all__'
+        model = User
+        fields = ['name', 'height', 'weight', 'foot_length', 'skiboots_size', 
+                  'snowboard_size_1', 'snowboard_size_2', 'snowboard_hardness', 'skipole_size'
+                  ]
+
+class UserSerializerBasic(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['name', 'gender', 'phone', 
+                  'height', 'weight', 'foot_length',  
+                  'ski_board', 'ski_level', 'ski_favor'
+                  ]
+
+
+class LeaderSerializer(serializers.ModelSerializer):
+    name = serializers.SerializerMethodField()
+    phone = serializers.SerializerMethodField()
+    
+    def get_name(self, obj):
+        return obj.user.name
+
+    def get_phone(self, obj):
+        return obj.user.name
+
+
+    class Meta:
+        model = Leader
+        fields = ['name', 'phone', 'profile', 'intro']
+
+
+@receiver(post_save, sender=Leader)
+def set_user_subject(sender, instance, created, **kwargs):
+    if created:  # 如果是新创建的
+        instance.user.identity = 1
+        instance.user.phone = instance.phone
+        instance.user.profile = instance.profile
+        instance.user.intro = instance.intro
+        instance.user.save()
+
+
+
+# ===============================================================================
+'''
+class UserSerializerHome(serializers.ModelSerializer):
+    registration_time = serializers.SerializerMethodField()
+    
+    def get_registration_time(self, obj):
+        time_now = timezone.now()
+        time_regi = obj.create_time
+        # todo
+        return str((time_now - time_regi).days)
+    
+    
+    class Meta:
+        model = User
+        fields = ['name', 'intro', 'registration_time', ]
+'''
 
