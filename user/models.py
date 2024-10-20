@@ -115,14 +115,14 @@ class UserSerializer(serializers.ModelSerializer):
 class UserSerializerSki(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['name', 'height', 'weight', 'foot_length', 'skiboots_size', 
+        fields = ['id', 'name', 'height', 'weight', 'foot_length', 'skiboots_size', 
                   'snowboard_size_1', 'snowboard_size_2', 'snowboard_hardness', 'skipole_size'
                   ]
 
 class UserSerializerBasic(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['name', 'gender', 'phone', 
+        fields = ['id', 'name', 'gender', 'phone', 
                   'height', 'weight', 'foot_length',  
                   'ski_board', 'ski_level', 'ski_favor'
                   ]
@@ -131,17 +131,20 @@ class UserSerializerBasic(serializers.ModelSerializer):
 class LeaderSerializer(serializers.ModelSerializer):
     name = serializers.SerializerMethodField()
     phone = serializers.SerializerMethodField()
-    
+    user_id = serializers.SerializerMethodField()
+
     def get_name(self, obj):
         return obj.user.name
 
     def get_phone(self, obj):
         return obj.user.name
 
+    def get_user_id(self, obj):
+        return obj.user.id
 
     class Meta:
         model = Leader
-        fields = ['name', 'phone', 'profile', 'intro']
+        fields = ['id', 'user_id', 'name', 'phone', 'profile', 'intro']
 
 
 @receiver(post_save, sender=Leader)

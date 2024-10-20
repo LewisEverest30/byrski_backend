@@ -13,18 +13,66 @@ from user.models import User
 
 # ==================================信息获取======================================
 
-class get_all_activity(APIView):
+# 获取滑雪场列表
+class get_all_skiresort(APIView):
     def get(self,request,*args,**kwargs):
-        all_activity = Activity.objects.all()
-        serializer = ActivitySerializer(instance=all_activity, many=True)
-        return Response({'ret': 0, 'activity': list(serializer.data)})
+        all_skiresort = Skiresort.objects.all()
+        serializer = SkiresortSerializer1(instance=all_skiresort, many=True)
+        return Response({'ret': 0, 'data': list(serializer.data)})
 
 
-class get_active_activity(APIView):
-    def get(self,request,*args,**kwargs):
-        active_activity = Activity.objects.filter(registration_status=True)
-        serializer = ActivitySerializer(instance=active_activity, many=True)
-        return Response({'ret': 0, 'activity': list(serializer.data)})
+class get_tickets_of_certain_skiresort(APIView):
+    def post(self,request,*args,**kwargs):
+        info = json.loads(request.body)
+        try:
+            skiresort_id = info['id']
+            skiresort_found = Skiresort.objects.filter(id=skiresort_id)
+            ticket_found = Ticket.objects.filter(activity__activity_template__ski_resort__id=skiresort_id)
+            skiresort_serializer = SkiresortSerializer2(instance=skiresort_found[0], many=False)
+            ticket_serializer = TicketSerializer1(instance=ticket_found, many=True)
+
+            return Response({'ret': 0, 'errmsg': None, 
+                             'data': {
+                                 'ski_resort': skiresort_serializer.data,
+                                 'ticket': list(ticket_serializer.data)
+                             }
+                             })
+        except Exception as e:
+            print(repr(e))
+            return Response({'ret': 410101, 'errmsg': '其他错误', 'data': None})
+
+
+class get_certain_activity_template(APIView):
+    def post(self,request,*args,**kwargs):
+        info = json.loads(request.body)
+        try:
+            acti_templ_id = info['id']
+            activity_templ = ActivityTemplate.objects.filter(id=acti_templ_id)
+            skiresort_serializer = SkiresortSerializer3(instance=activity_templ[0].ski_resort, many=False)
+            activity_templ_serializer = ActivityTemplateSerializer(instance=activity_templ[0], many=False)
+            return Response({'ret': 0, 'errmsg': None, 
+                             'data': {**skiresort_serializer.data, **activity_templ_serializer.data}
+                            #  'data': {
+                            #      'ski_resort': skiresort_serializer.data,
+                            #      'activity_template': activity_templ_serializer.data
+                            #  }
+                             })
+        except Exception as e:
+            print(repr(e))
+            return Response({'ret': 410201, 'errmsg': '其他错误', 'data': None})
+
+
+class get_certain_ticket(APIView):
+    def post(self,request,*args,**kwargs):
+        info = json.loads(request.body)
+        try:
+            ticket_id = info['id']
+            ticket = Ticket.objects.get(id=ticket_id)
+            serializer = TicketSerializer2(instance=ticket, many=False)
+            return Response({'ret': 0, 'data': serializer.data})
+        except Exception as e:
+            print(repr(e))
+            return Response({'ret': 410301, 'data': None})
 
 
 class get_certain_activity(APIView):
@@ -39,10 +87,20 @@ class get_certain_activity(APIView):
             print(repr(e))
             return Response({'ret': -1, 'activity': None})
 
+
 # =============================================================================
 
 
+# ==========================================deprecated=======================================================
+'''
+class get_active_activity(APIView):
+    def get(self,request,*args,**kwargs):
+        active_activity = Activity.objects.filter(registration_status=True)
+        serializer = ActivitySerializer(instance=active_activity, many=True)
+        return Response({'ret': 0, 'activity': list(serializer.data)})
 
+
+'''
 
 
 # =======================================================购票相关===========================================================

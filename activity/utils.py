@@ -4,30 +4,30 @@ from django.conf import settings
 
 
 # ===================能提供的服务==============================
-SERVICES = [
-    {
+SERVICES = {
+    '滑雪门票': {
         'service': '滑雪门票',
         'icon': settings.MEDIA_URL + ''
-    },    
-    {
+    },
+    '往返车票': {
         'service': '往返车票',
         'icon': settings.MEDIA_URL + ''
     },
-    {
+    '酒店住宿': {
         'service': '酒店住宿',
         'icon': settings.MEDIA_URL + ''
     },
-    {
+    '雪具租赁': {
         'service': '雪具租赁',
         'icon': settings.MEDIA_URL + ''
     },
-    {
+    '人身保险': {
         'service': '人身保险',
         'icon': settings.MEDIA_URL + ''
     },
-]
+}
 
-SERVICE_NAMES = [i['service'] for i in SERVICES]
+SERVICE_NAMES = [i['service'] for i in list(SERVICES.values())]
 SERVICE_STRING_RE = '|'.join(SERVICE_NAMES)
 SERVICE_STRING_SHOW = ' '.join(SERVICE_NAMES)
 
@@ -42,7 +42,7 @@ Validator_slope = RegexValidator(pattern_slope, '请用形如这样的格式来�
 pattern_schedule = r'^(\S+:\S+ )*(\S+:\S+)$'
 Validator_schedule = RegexValidator(pattern_schedule, '请用形如这样的格式来表示行程安排: "第一天9点:出发 第一天11点:到达 第一天16点:返程"')
 
-pattern_service = fr'^({SERVICE_STRING_RE} )*{SERVICE_STRING_RE}'
+pattern_service = fr'^(({SERVICE_STRING_RE}) )*({SERVICE_STRING_RE})$'
 Validator_service = RegexValidator(pattern_service, '请使用空格分隔各个服务。可选服务有：'+SERVICE_STRING_SHOW)
 
 

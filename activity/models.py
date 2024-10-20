@@ -3,10 +3,10 @@ from rest_framework import serializers
 from django.utils.translation import gettext_lazy as _
 from django.core.validators import MinValueValidator
 from django.conf import settings
+from django.db.models import Min
 
-
+from .utils import SERVICES
 from .utils import Validator_slope, Validator_schedule, SERVICE_STRING_SHOW, Validator_service
-
 
 
 # ===============================数据库表==================================================
@@ -45,8 +45,8 @@ class Skiresort(models.Model):
     opening = models.CharField(verbose_name='营业时间', max_length=200, null=False, blank=False)
     phone = models.CharField(verbose_name='电话', max_length=11, null=False, blank=False)
 
-    intro = models.TextField(verbose_name='简介', null=False, blank=False)
-    cover = models.ImageField(verbose_name='封面图片', null=False, blank=False,
+    intro = models.CharField(verbose_name='简介', max_length=25, null=False, blank=False)
+    cover = models.ImageField(verbose_name='封面图片', null=False, blank=False, 
                             upload_to='skiresortpic/')
     slope = models.CharField(verbose_name='雪道组成', max_length=200, null=False, blank=False,
                              validators=[Validator_slope, ],
@@ -56,20 +56,19 @@ class Skiresort(models.Model):
     detailpic = models.ImageField(verbose_name='详细介绍（电商长图形势）', null=True, blank=True,
                             upload_to='skiresortpic/')
     website = models.CharField(verbose_name='官网URL', max_length=500, null=True, blank=True)
-    
-    create_time = models.DateTimeField(verbose_name='创建时间', auto_now_add=True, null=True) 
-    update_time = models.DateTimeField(verbose_name='修改时间', auto_now=True, null=True)
 
+    create_time = models.DateTimeField(verbose_name='创建时间', auto_now_add=True, null=True)
+    update_time = models.DateTimeField(verbose_name='修改时间', auto_now=True, null=True)
 
     def __str__(self) -> str:
         return self.name
-    
+
     class Meta:
         verbose_name = "滑雪场"
         verbose_name_plural = "滑雪场"
 # 雪场摄影
 class SkiresortPic(models.Model):
-    gift = models.ForeignKey(verbose_name='对应的滑雪场', to=Skiresort, 
+    skiresort = models.ForeignKey(verbose_name='对应的滑雪场', to=Skiresort, 
                                  null=False, blank=False, on_delete=models.CASCADE)
     pic = models.ImageField(verbose_name='图片', null=False, blank=False,
                             upload_to='skiresortpic/')
@@ -81,10 +80,11 @@ class SkiresortPic(models.Model):
 
 # 活动类别模板
 class ActivityTemplate(models.Model):
-    ski_resort = models.ForeignKey(verbose_name='滑雪场', to=Skiresort, on_delete=models.PROTECT)    
+    ski_resort = models.ForeignKey(verbose_name='滑雪场', to=Skiresort, on_delete=models.PROTECT)
+    name = models.CharField(verbose_name='活动名称', max_length=20, null=True, blank=False, help_text='示例：“翠云山银河滑雪场两日票” (雪场+天数， 20字以内)')
     duration_days = models.IntegerField(verbose_name='持续天数')
     detail = models.TextField(verbose_name='活动详情', null=True, blank=False)
-    schedule_full = models.TextField(verbose_name='行程安排(详细说明)', null=True, blank=False)
+    schedule = models.TextField(verbose_name='行程安排(详细说明)', null=True, blank=False)
     attention = models.TextField(verbose_name='注意事项', null=True, blank=True)
     notes = models.TextField(verbose_name='备注', null=True, blank=True)
 
@@ -169,11 +169,15 @@ class ActivityWxGroup(models.Model):
 # 雪票
 class Ticket(models.Model):
     activity = models.ForeignKey(verbose_name='活动', to=Activity, on_delete=models.PROTECT)
+    intro = models.CharField(verbose_name='简介', max_length=25, null=True, blank=False)
+    
     service = models.CharField(verbose_name='提供的服务', max_length=100, null=False, blank=False,
                                 validators=[Validator_service, ],
                                 help_text='请使用空格分隔各个服务。可选服务有：'+SERVICE_STRING_SHOW)
     
     price = models.DecimalField(verbose_name='单价', null=False, blank=False, max_digits=7, decimal_places=2,
+                                validators=[MinValueValidator(1)])    
+    original_price = models.DecimalField(verbose_name='原价', null=True, blank=False, max_digits=7, decimal_places=2,
                                 validators=[MinValueValidator(1)])    
     sales = models.IntegerField(verbose_name='已售出个数', default=0)
 
@@ -196,6 +200,156 @@ class Ticket(models.Model):
 
 
 # ===============================序列化器============================================
+
+# 用于获取所有滑雪场
+class SkiresortSerializer1(serializers.ModelSerializer):
+    min_price = serializers.SerializerMethodField()
+
+    def get_min_price(self, obj):
+        tickets_min_price = Ticket.objects.filter(activity__activity_template__ski_resort__id=obj.id).aggregate(Min('price'))
+        try:
+            return tickets_min_price['price__min']
+        except:
+            return None
+
+    class Meta:
+        model = Skiresort
+        fields = ['id', 'name', 'cover', 'intro', 'min_price']
+
+
+# 用于获取滑雪场详细信息
+class SkiresortSerializer2(serializers.ModelSerializer):
+    class Meta:
+        model = Skiresort
+        fields = ['id', 'name', 'cover', 'intro', 'opening', 'location', 'slope']
+
+
+# 用于活动模板详情页获取滑雪场详细信息
+class SkiresortPicSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SkiresortPic
+        exclude = ['id', 'skiresort']
+class SkiresortSerializer3(serializers.ModelSerializer):
+    pics = serializers.SerializerMethodField()
+
+    def get_pics(self, obj):
+        found = SkiresortPic.objects.filter(skiresort_id=obj.id)
+        if found.count() > 0:
+            serializer = SkiresortPicSerializer(instance=found, many=True)            
+            return serializer.data
+        else:
+            return None
+
+    class Meta:
+        model = Skiresort
+        fields = ['location', 'cover', 'pics']
+
+
+WEEKDAY_MAP = {
+    "Monday": "周一",
+    "Tuesday": "周二",
+    "Wednesday": "周三",
+    "Thursday": "周四",
+    "Friday": "周五",
+    "Saturday": "周六",
+    "Sunday": "周日"
+}
+# 用于获取滑雪场详细信息
+class TicketSerializer1(serializers.ModelSerializer):
+    ticket_id = serializers.SerializerMethodField()
+    activity_id = serializers.SerializerMethodField()
+    activitytemplate_id = serializers.SerializerMethodField()
+    activity_name = serializers.SerializerMethodField()
+    begin_end = serializers.SerializerMethodField()
+
+    def get_ticket_id(self, obj):
+        return obj.id
+
+    def get_activity_id(self, obj):
+        return obj.activity.id
+    
+    def get_activitytemplate_id(self, obj):
+        return obj.activity.activity_template.id
+
+    def get_activity_name(self, obj):
+        return obj.activity.activity_template.name
+
+    def get_begin_end(self, obj):
+        begin_date_raw = obj.activity.activity_begin_date
+        end_date_raw = obj.activity.activity_end_date
+        begin_date = begin_date_raw.strftime('%m月%d日')
+        end_date = end_date_raw.strftime('%m月%d日')
+        begin_day = WEEKDAY_MAP[begin_date_raw.strftime('%A')]
+        end_day = WEEKDAY_MAP[end_date_raw.strftime('%A')]
+
+        return {
+            'date': f'{begin_date}-{end_date}',
+            'day': f'{begin_day}-{end_day}',
+        }
+        
+
+    class Meta:
+        model = Ticket
+        fields = ['ticket_id', 'activity_id', 'activitytemplate_id', 'activity_name', 'begin_end', 'intro', 'price']
+
+
+# 用于购票页面的票详情展示
+class TicketSerializer2(serializers.ModelSerializer):
+    ticket_id = serializers.SerializerMethodField()
+    activity_id = serializers.SerializerMethodField()
+    activitytemplate_id = serializers.SerializerMethodField()
+    name = serializers.SerializerMethodField()
+    begin_end = serializers.SerializerMethodField()
+    service = serializers.SerializerMethodField()
+
+    def get_ticket_id(self, obj):
+        return obj.id
+
+    def get_activity_id(self, obj):
+        return obj.activity.id
+    
+    def get_activitytemplate_id(self, obj):
+        return obj.activity.activity_template.id
+
+    def get_name(self, obj):
+        return obj.activity.activity_template.name
+
+    def get_begin_end(self, obj):
+        begin_date_raw = obj.activity.activity_begin_date
+        end_date_raw = obj.activity.activity_end_date
+        begin_date = begin_date_raw.strftime('%m月%d日')
+        end_date = end_date_raw.strftime('%m月%d日')
+        begin_day = WEEKDAY_MAP[begin_date_raw.strftime('%A')]
+        end_day = WEEKDAY_MAP[end_date_raw.strftime('%A')]
+
+        return {
+            'date': f'{begin_date}-{end_date}',
+            'day': f'{begin_day}-{end_day}',
+        }
+    
+    def get_service(self, obj):
+        services = obj.service.split()
+        service_dict = [SERVICES[s] for s in services]
+        return service_dict
+
+
+    class Meta:
+        model = Ticket
+        fields = ['ticket_id', 'activity_id', 'activitytemplate_id', 'name', 'service', 'begin_end', 'price', 'original_price']
+
+
+# 用于获取模板详情
+class ActivityTemplateSerializer(serializers.ModelSerializer):
+    # ski_resort_id = serializers.IntegerField(source='ski_resort.id')
+    # ski_resort = serializers.CharField(source='ski_resort.name')
+    # ski_resort_loc = serializers.CharField(source='ski_resort.location')
+    class Meta:
+        model = ActivityTemplate
+        fields = ['name', 'detail', 'schedule', 'attention']
+
+
+
+
 class BoardingLocTemplateSerializer(serializers.ModelSerializer):
     area = serializers.CharField(source='area.area_name')
     area_id = serializers.IntegerField(source='area.id')
@@ -203,11 +357,6 @@ class BoardingLocTemplateSerializer(serializers.ModelSerializer):
         model = BoardingLocTemplate
         fields = '__all__'
 
-
-class SkiresortPicSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Skiresort
-        exclude = ['id', 'gift']
 
 
 class ActivitySerializer(serializers.ModelSerializer):

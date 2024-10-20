@@ -30,17 +30,17 @@ urlpatterns = [
     path('get_user_basic_info', get_user_basic_info.as_view()),
     path('update_user_basic_info', update_user_basic_info.as_view()),
 
+    path('get_all_skiresort', get_all_skiresort.as_view()),
+    path('get_tickets_of_certain_skiresort', get_tickets_of_certain_skiresort.as_view()),
+    path('get_certain_activity_template', get_certain_activity_template.as_view()),
+    path('get_certain_ticket', get_certain_ticket.as_view()),
 
-    # path('update_user_ski_info', update_user_ski_info.as_view()),
-    # path('update_user_basic_info', update_user_basic_info.as_view()),
-    
+    # path('get_certain_activity', get_certain_activity.as_view()),
+
     # path('get_snowboard_size', get_skiboard_size.as_view()),
     # path('set_snowboard_size', set_skiboard_size.as_view()),
 
 
-    # path('get_all_activity', get_all_activity.as_view()),
-    # path('get_active_activity', get_active_activity.as_view()),
-    # path('get_certain_activity', get_certain_activity.as_view()),
 
     # path('get_busloc', get_busloc.as_view()),
     # path('create_activity_order', create_activity_order.as_view()),

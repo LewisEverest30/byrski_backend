@@ -88,7 +88,7 @@ class ActivityTemplateAdmin(admin.ModelAdmin, ExportExcelMixin):
 
 # 活动-票-群-上车点
 class TicketInline(admin.TabularInline):
-    fields = ('service','price',)
+    fields = ('intro', 'service', 'price', 'original_price')
     model = Ticket
     extra = 0  # 默认显示 0 个 
     readonly_fields = ('sales',)
