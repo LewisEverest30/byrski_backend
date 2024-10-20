@@ -25,7 +25,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-oxe!%51+s^=qyi6v5+e54^s+nu+s*77pcr8x)w&a(4(r*4$o4p'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ['*', 'localhost', '127.0.0.1']
 
@@ -82,8 +82,13 @@ WSGI_APPLICATION = 'byrski_backend.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'byrski_test',   # 数据库名
+        'USER': 'wsb',    # 数据库 用户名
+        'PASSWORD': 'wang13261910095',# 数据库 用户密码
+        'HOST': '127.0.0.1', # 数据库服务主机名
+        'PORT': '3306',      # 数据库服务端口    }
+
     }
 }
 
@@ -122,23 +127,23 @@ USE_TZ = False
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 STATIC_URL = 'static/'
-STATIC_ROOT = '/home/lewis/byrski_backend_static/static'
+STATIC_ROOT = '/root/byrski_backend_static/static'
 
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, MEDIA_URL)
+MEDIA_URL = 'static/media/'
+MEDIA_ROOT = '/root/byrski_backend_static/static/media'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
-APPID ='wx2b4fa660ea71d1a5'
-APPSECRET = 'c9811b45b61ecab06bf595101741eb0c'
+APPID ='wx535c7daf241afe7e'
+APPSECRET = '8a5eb086d8d0e0e087189ed4d614141d'
 
 SECRET_KEY = 'd916dac1-e79a-11eb-a95c-14f6d8e4b681'
 
 CRONJOBS = [
     ('0 */1 * * *', 'user.cron.update_access_token', '>> ' + os.path.join(os.path.dirname(BASE_DIR), 'logs/update_access_token.log')),
-    ('1 0 * * *', 'activity.cron.set_activity_expire', '>> ' + os.path.join(os.path.dirname(BASE_DIR), 'logs/set_activity_expire.log')), # 00:01
+    ('1 0 * * *', 'order.cron.set_activity_expire', '>> ' + os.path.join(os.path.dirname(BASE_DIR), 'logs/set_activity_expire.log')), # 00:01
 ]
 
