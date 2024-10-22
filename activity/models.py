@@ -13,6 +13,8 @@ from .utils import Validator_slope, Validator_schedule, SERVICE_STRING_SHOW, Val
 # 上车点区域范围
 class Area(models.Model):
     area_name = models.CharField('地区名称', max_length=100, unique=True)
+    # todo null=false
+    city_name = models.CharField('所属城市名称', max_length=100, null=True, blank=False)
 
     def __str__(self) -> str:
         return self.area_name
@@ -41,6 +43,8 @@ class BoardingLocTemplate(models.Model):
 # 雪场
 class Skiresort(models.Model):
     name = models.CharField(verbose_name='滑雪场名', max_length=50, null=False, blank=False)
+    # todo null=false
+    area = models.ForeignKey(verbose_name='所在地区', to=Area, on_delete=models.CASCADE, null=True, blank=False)
     location = models.CharField(verbose_name='位置', max_length=300, null=False, blank=False)
     opening = models.CharField(verbose_name='营业时间', max_length=200, null=False, blank=False)
     phone = models.CharField(verbose_name='电话', max_length=11, null=False, blank=False)
@@ -340,24 +344,22 @@ class TicketSerializer2(serializers.ModelSerializer):
 
 # 用于获取模板详情
 class ActivityTemplateSerializer(serializers.ModelSerializer):
-    # ski_resort_id = serializers.IntegerField(source='ski_resort.id')
-    # ski_resort = serializers.CharField(source='ski_resort.name')
-    # ski_resort_loc = serializers.CharField(source='ski_resort.location')
     class Meta:
         model = ActivityTemplate
         fields = ['name', 'detail', 'schedule', 'attention']
 
 
-
-
-class BoardingLocTemplateSerializer(serializers.ModelSerializer):
-    area = serializers.CharField(source='area.area_name')
-    area_id = serializers.IntegerField(source='area.id')
+class BoardinglocSerializer(serializers.ModelSerializer):
+    area = serializers.CharField(source='loc.area.area_name')
+    loc = serializers.CharField(source='loc.busboardloc')
     class Meta:
-        model = BoardingLocTemplate
-        fields = '__all__'
+        model = Boardingloc
+        fields = ['id', 'area', 'loc', 'choice_peoplenum', 'target_peoplenum']
+
+# ======================================================================================
 
 
+'''
 
 class ActivitySerializer(serializers.ModelSerializer):
     ski_resort_id = serializers.IntegerField(source='ski_resort.id')
@@ -367,16 +369,7 @@ class ActivitySerializer(serializers.ModelSerializer):
         model = Activity
         fields = '__all__'
 
-
-class BoardinglocSerializer(serializers.ModelSerializer):
-    loc = serializers.CharField(source='loc.busboardloc')
-    loc_id = serializers.IntegerField(source='loc.id')
-    class Meta:
-        model = Boardingloc
-        fields = '__all__'
-
-# ======================================================================================
-
+'''
 
 
 # ⬇️雪具租赁相关表

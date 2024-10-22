@@ -21,6 +21,28 @@ class get_all_skiresort(APIView):
         return Response({'ret': 0, 'data': list(serializer.data)})
 
 
+
+class get_tickets_of_homepage_activity(APIView):
+    def get(self,request,*args,**kwargs):
+        try:
+            activity_found = Activity.objects.filter().order_by('-create_time')
+            skiresort_id = activity_found[0].activity_template.ski_resort.id
+            skiresort_found = Skiresort.objects.filter(id=skiresort_id)
+            ticket_found = Ticket.objects.filter(activity__activity_template__ski_resort__id=skiresort_id)
+            skiresort_serializer = SkiresortSerializer2(instance=skiresort_found[0], many=False)
+            ticket_serializer = TicketSerializer1(instance=ticket_found, many=True)
+
+            return Response({'ret': 0, 'errmsg': None, 
+                             'data': {
+                                 'ski_resort': skiresort_serializer.data,
+                                 'ticket': list(ticket_serializer.data)
+                             }
+                             })
+        except Exception as e:
+            print(repr(e))
+            return Response({'ret': 410001, 'errmsg': '其他错误', 'data': None})
+
+
 class get_tickets_of_certain_skiresort(APIView):
     def post(self,request,*args,**kwargs):
         info = json.loads(request.body)
@@ -75,6 +97,54 @@ class get_certain_ticket(APIView):
             return Response({'ret': 410301, 'data': None})
 
 
+class get_boardingloc(APIView):
+    def post(self,request,*args,**kwargs):
+        info = json.loads(request.body)
+        try:
+            activity_id = info['id']
+            boardingloc = Boardingloc.objects.filter(activity_id=activity_id)
+            serializer = BoardinglocSerializer(instance=boardingloc, many=True)
+            raw_data = list(serializer.data)
+
+            # 按area分区重新组织上车点
+            ret_dict = {}
+            for bloc in raw_data:
+                if bloc['area'] in list(ret_dict.keys()):
+                    ret_dict[bloc['area']].append(bloc)
+                else:
+                    ret_dict[bloc['area']] = [bloc, ]
+            
+            # return Response({'ret': 0, 'data': ret_list})
+            return Response({'ret': 0, 'data': ret_dict})
+        except Exception as e:
+            print(repr(e))
+            return Response({'ret': 410401, 'data': None})
+
+            # # 按area分区重新组织上车点
+            # ret_list = []
+            # for bloc in raw_data:
+            #     if bloc['area'] in [i['area'] for i in ret_list]:  # 该区域已录入
+            #         for index, r_dict in enumerate(ret_list):
+            #             if bloc['area'] == r_dict['area']:
+            #                 r_dict['data'].append(bloc)
+            #     else:   # 该区域未录入
+            #         ret_list.append(
+            #             {
+            #                 'area': bloc['area'],
+            #                 'data': [bloc]
+            #             }
+            #         )
+
+
+
+
+
+# =============================================================================
+
+
+# ==========================================deprecated=======================================================
+
+'''
 class get_certain_activity(APIView):
     def post(self,request,*args,**kwargs):
         info = json.loads(request.body)
@@ -86,12 +156,8 @@ class get_certain_activity(APIView):
         except Exception as e:
             print(repr(e))
             return Response({'ret': -1, 'activity': None})
+'''
 
-
-# =============================================================================
-
-
-# ==========================================deprecated=======================================================
 '''
 class get_active_activity(APIView):
     def get(self,request,*args,**kwargs):
@@ -151,16 +217,6 @@ class get_all_activity_order(APIView):  # 一个用户的所有订单
             return Response({'ret': -1, 'order': None})
 
 
-def get_client_ip(request):
-
-    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-
-    if x_forwarded_for:
-        ip = x_forwarded_for.split(',')[-1].strip()
-    else:
-        ip = request.META.get('REMOTE_ADDR')
-
-    return ip
 
 class create_activity_order(APIView):
     authentication_classes = [MyJWTAuthentication, ]
