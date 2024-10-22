@@ -102,6 +102,15 @@ class Leader(models.Model):
     class Meta:
         verbose_name = "领队"
         verbose_name_plural = "领队"
+# 创建领队时通过信号机制来设置User表的内容
+@receiver(post_save, sender=Leader)
+def set_user_subject(sender, instance, created, **kwargs):
+    if created:  # 如果是新创建的
+        instance.user.identity = 1
+        instance.user.phone = instance.phone
+        instance.user.profile = instance.profile
+        instance.user.intro = instance.intro
+        instance.user.save()
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -144,17 +153,7 @@ class LeaderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Leader
-        fields = ['id', 'user_id', 'name', 'phone', 'profile', 'intro']
-
-
-@receiver(post_save, sender=Leader)
-def set_user_subject(sender, instance, created, **kwargs):
-    if created:  # 如果是新创建的
-        instance.user.identity = 1
-        instance.user.phone = instance.phone
-        instance.user.profile = instance.profile
-        instance.user.intro = instance.intro
-        instance.user.save()
+        fields = ['id', 'name', 'phone', 'profile', 'intro']
 
 
 
