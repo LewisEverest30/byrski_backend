@@ -101,7 +101,7 @@ class ActivityTemplate(models.Model):
 
     def __str__(self) -> str:
         # return str(self.id)+'_'+self.ski_resort.name
-        return f'{self.ski_resort.name}-{self.duration_days}天-#{self.id}'
+        return f'{self.ski_resort.name}-{self.duration_days}天-ID#{self.id}'
 
     class Meta:
         verbose_name = "活动模板"
@@ -118,6 +118,9 @@ class Activity(models.Model):
     activity_template = models.ForeignKey(verbose_name='对应活动模板', to=ActivityTemplate, on_delete=models.PROTECT)
     activity_begin_date = models.DateField(verbose_name='活动开始日期(活动第一天)', null=False, blank=False)
     activity_end_date = models.DateField(verbose_name='活动结束日期(活动最后一天)', null=False, blank=False)
+    # 返程时间、地点
+    activity_return_time = models.TimeField(verbose_name='返程集合时间', null=True, blank=False)
+    activity_return_loc = models.CharField(verbose_name='返程集合位置', max_length=70, null=True, blank=False)
 
     signup_ddl_date = models.DateField(verbose_name='截止报名日期(当天23:59截止报名)', null=False, blank=False)
     lock_ddl_date = models.DateField(verbose_name='锁票日期(当天23:59锁票)', null=False, blank=False)
@@ -130,7 +133,7 @@ class Activity(models.Model):
     update_time = models.DateTimeField(verbose_name='修改时间', auto_now=True)
 
     def __str__(self) -> str:
-        return f'{self.activity_template} - {self.activity_begin_date} - #{self.id}'
+        return f'Template({self.activity_template}) - {self.activity_begin_date} - ID#{self.id}'
 
     class Meta:
         verbose_name = "活动"

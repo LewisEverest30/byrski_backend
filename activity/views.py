@@ -2,7 +2,7 @@ import json
 import datetime
 from django.conf import settings
 from django.forms.models import model_to_dict
-from django.db.models import F
+from django.db.models import F, Q
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -15,6 +15,8 @@ from user.models import User
 
 # 获取滑雪场列表
 class get_all_skiresort(APIView):
+    authentication_classes = [MyJWTAuthentication, ]
+
     def get(self,request,*args,**kwargs):
         all_skiresort = Skiresort.objects.all()
         serializer = SkiresortSerializer1(instance=all_skiresort, many=True)
@@ -23,6 +25,8 @@ class get_all_skiresort(APIView):
 
 
 class get_tickets_of_homepage_activity(APIView):
+    authentication_classes = [MyJWTAuthentication, ]
+
     def get(self,request,*args,**kwargs):
         try:
             activity_found = Activity.objects.filter().order_by('-create_time')
@@ -44,6 +48,8 @@ class get_tickets_of_homepage_activity(APIView):
 
 
 class get_tickets_of_certain_skiresort(APIView):
+    authentication_classes = [MyJWTAuthentication, ]
+
     def post(self,request,*args,**kwargs):
         info = json.loads(request.body)
         try:
@@ -65,15 +71,35 @@ class get_tickets_of_certain_skiresort(APIView):
 
 
 class get_certain_activity_template(APIView):
+    authentication_classes = [MyJWTAuthentication, ]
+
     def post(self,request,*args,**kwargs):
+        userid = request.user['userid']
         info = json.loads(request.body)
         try:
-            acti_templ_id = info['id']
+            acti_templ_id = info['activitytemplate_id']
+            activity_id = info['activity_id']
             activity_templ = ActivityTemplate.objects.filter(id=acti_templ_id)
             skiresort_serializer = SkiresortSerializer3(instance=activity_templ[0].ski_resort, many=False)
             activity_templ_serializer = ActivityTemplateSerializer(instance=activity_templ[0], many=False)
+            
+            # 判断是否可以购票
+            # 是否截止报名
+            activity = Activity.objects.get(id=activity_id)
+            is_available = True if activity.status==0 else False
+            # 是否已有有效订单
+            from order.models import TicketOrder
+            TicketOrder.cancel_paid_timeout_orders()  # 先检查超时未支付订单
+            order_found = TicketOrder.objects.filter(Q(user_id=userid) & Q(ticket__activity_id=activity_id) &
+                                                     (Q(status=1) | Q(status=2) | Q(status=3) | Q(status=4)))  # 已取消和完成退款的为无效的
+            if order_found.count() == 0:
+                have_valid_order = False
+            else:
+                have_valid_order = True
+
             return Response({'ret': 0, 'errmsg': None, 
-                             'data': {**skiresort_serializer.data, **activity_templ_serializer.data}
+                             'data': {**skiresort_serializer.data, **activity_templ_serializer.data,
+                                      'is_available': is_available, 'have_valid_order': have_valid_order}
                             #  'data': {
                             #      'ski_resort': skiresort_serializer.data,
                             #      'activity_template': activity_templ_serializer.data
@@ -85,6 +111,8 @@ class get_certain_activity_template(APIView):
 
 
 class get_certain_ticket(APIView):
+    authentication_classes = [MyJWTAuthentication, ]
+
     def post(self,request,*args,**kwargs):
         info = json.loads(request.body)
         try:
@@ -98,6 +126,8 @@ class get_certain_ticket(APIView):
 
 
 class get_boardingloc(APIView):
+    authentication_classes = [MyJWTAuthentication, ]
+
     def post(self,request,*args,**kwargs):
         info = json.loads(request.body)
         try:
@@ -139,7 +169,6 @@ class get_boardingloc(APIView):
 
 
 
-# =============================================================================
 
 
 # ==========================================deprecated=======================================================
