@@ -111,6 +111,11 @@ def set_user_subject(sender, instance, created, **kwargs):
         instance.user.profile = instance.profile
         instance.user.intro = instance.intro
         instance.user.save()
+    else:  # 如果是修改
+        instance.user.phone = instance.phone
+        instance.user.profile = instance.profile
+        instance.user.intro = instance.intro
+        instance.user.save()
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -140,13 +145,13 @@ class UserSerializerBasic(serializers.ModelSerializer):
 class LeaderSerializer(serializers.ModelSerializer):
     name = serializers.SerializerMethodField()
     phone = serializers.SerializerMethodField()
-    user_id = serializers.SerializerMethodField()
+    # user_id = serializers.SerializerMethodField()
 
     def get_name(self, obj):
         return obj.user.name
 
     def get_phone(self, obj):
-        return obj.user.name
+        return obj.phone
 
     def get_user_id(self, obj):
         return obj.user.id
