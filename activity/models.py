@@ -4,6 +4,7 @@ from django.utils.translation import gettext_lazy as _
 from django.core.validators import MinValueValidator
 from django.conf import settings
 from django.db.models import Min
+from django.core.exceptions import ValidationError
 
 from .utils import SERVICES
 from .utils import Validator_slope, Validator_schedule, SERVICE_STRING_SHOW, Validator_service
@@ -135,6 +136,26 @@ class Activity(models.Model):
     def __str__(self) -> str:
         return f'Template({self.activity_template}) - {self.activity_begin_date} - ID#{self.id}'
 
+    # def save(self, *args, **kwargs):
+    #     if not self.ticket_set.exists():
+    #         raise ValidationError("每个活动必须至少有一个票")
+    #     if not self.boardingloc_set.exists():
+    #         raise ValidationError("每个活动必须至少有一个上车点")
+    #     if not self.activitywxgroup_set.exists():
+    #         raise ValidationError("每个活动必须至少有一个微信群")
+    #     super().save(*args, **kwargs)
+    
+    # def clean(self):
+    #     # cleaned_data = super().clean()
+    #     # activity = self.instance
+    #     super().clean()
+    #     if self.ticket_set.count() == 0:
+    #         raise ValidationError("每个活动必须至少有一个票")
+    #     if self.boardingloc_set.count() == 0:
+    #         raise ValidationError("每个活动必须至少有一个上车点")
+    #     if self.activitywxgroup_set.count() == 0:
+    #         raise ValidationError("每个活动必须至少有一个微信群")
+    
     class Meta:
         verbose_name = "活动"
         verbose_name_plural = "活动"
@@ -154,7 +175,16 @@ class Boardingloc(models.Model):
         verbose_name = "上车点"
         verbose_name_plural = "上车点"
         unique_together = (("activity", "loc"),)
-
+# 区域内所有上车点总下限
+class AreaBoardingLowerLimit(models.Model):
+    activity = models.ForeignKey(verbose_name='活动', to=Activity, on_delete=models.PROTECT)
+    area = models.ForeignKey(verbose_name='所在地区', to=Area, on_delete=models.CASCADE, null=True, blank=False)
+    lower_limit = models.IntegerField(verbose_name='下限人数', null=False, blank=False)
+    def __str__(self) -> str:
+        return f'活动(#{self.activity.id})-地区({self.area.area_name})-#{self.id}'
+    class Meta:
+        verbose_name = "区域上车下限"
+        verbose_name_plural = "区域上车下限"
 
 # 活动微信群
 class ActivityWxGroup(models.Model):
@@ -169,8 +199,8 @@ class ActivityWxGroup(models.Model):
         return f'{self.activity}'
 
     class Meta:
-        verbose_name = "活动"
-        verbose_name_plural = "活动"
+        verbose_name = "微信群二维码"
+        verbose_name_plural = "微信群二维码"
 
 
 # 雪票
