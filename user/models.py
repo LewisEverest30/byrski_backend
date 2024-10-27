@@ -43,7 +43,7 @@ class User(models.Model):
     openid = models.CharField(verbose_name='openid', max_length=28, unique=True, db_index=True)
 
     name = models.CharField(verbose_name='姓名', max_length=15, null=True, blank=True)
-    # school = models.CharField(verbose_name='学校', max_length=50, null=True, blank=True)
+    school = models.CharField(verbose_name='学校', max_length=50, null=True, blank=True)
     # age = models.IntegerField(verbose_name='年龄', null=True, blank=True)
     phone = models.CharField(verbose_name='手机号', max_length=11, null=True, blank=True)
     # wxaccount = models.CharField(verbose_name='微信号', max_length=22)

@@ -96,9 +96,25 @@ class create_ticket_order(APIView):
                     wxgroup_index = int(this_acti_order_num / WXGROUP_MAX_NUM)
                     wxgroup_choice = ActivityWxGroup.objects.filter(activity_id=ticket.activity.id).order_by('id')[wxgroup_index]
                     
-
+                    
+                    # try:
+                    #     wxgroup_choice = ActivityWxGroup.objects.filter(activity_id=ticket.activity.id).order_by('id')[wxgroup_index]
+                    # except Exception as e:
+                    #     print(repr(e))
+                    #     return Response({'ret': 420008, 'errmsg': '其他错误，请检查提交的数据是否合法', 
+                    #                     'data': {
+                    #                         'order_id':None, 
+                    #                         'ordernumber':None, 
+                    #                         'ip': ip
+                    #                     },
+                    # 绑定微信群（取消和退款的也会占用群名额）                    
+                    #                     })
+                    
+                    
                     # 创建订单
-                    ordernumber = str(userid).zfill(6)+str(datetime.datetime.now())[:24].replace(' ', '').replace('-', '').replace(':', '').replace('.', '')
+                    # ordernumber = str(userid).zfill(6)+str(datetime.datetime.now())[2:20].replace(' ', '').replace('-', '').replace(':', '').replace('.', '')
+                    ordernumber = ('out_trade_no_'+str(datetime.datetime.now())).replace(' ', '').replace('-', '').replace(':', '').replace('.', '')[:32]
+                    
                     neworder = TicketOrder.objects.create(ordernumber=ordernumber , user_id=userid, ticket_id=ticket_id, 
                                                   bus_loc_id=bus_loc_id, wxgroup_id=wxgroup_choice.id)
                     
@@ -176,7 +192,7 @@ class get_all_itinerary(APIView):
             current_date = timezone.now().date()
             orders = TicketOrder.objects.filter(Q(user_id=userid) & 
                                             (Q(status=2) | Q(status=3)) &
-                                            Q(ticket__activity__activity_end_date__gt=current_date))  # 不要已结束的行程
+                                            Q(ticket__activity__activity_end_date__gte=current_date))  # 不要已结束的行程
             serializer = OrderSerializerItinerary1(instance=orders, many=True)
             return Response({'ret': 0, 'data': list(serializer.data)})
         except Exception as e:
@@ -220,9 +236,9 @@ class get_available_boardingloc_of_certain_itinerary(APIView):
             activity_id = TicketOrder.objects.get(id=order_id).ticket.activity.id
             boardinglocs = Boardingloc.objects.filter(activity_id=activity_id)
             for bl in boardinglocs:  # 对于所有的目前可用的上车点
-                print(bl)
+                # print(bl)
                 related_bus_ids = Bus_boarding_time.objects.filter(loc_id=bl.id).values_list('bus_id', flat=True).distinct()
-                print(related_bus_ids)
+                # print(related_bus_ids)
                 related_bus = Bus.objects.filter(id__in=related_bus_ids)
                 availible_bus = []
                 for bus in related_bus:
@@ -235,7 +251,7 @@ class get_available_boardingloc_of_certain_itinerary(APIView):
                         this_bus_data['boardingtime'] = Bus_boarding_time.objects.filter(loc_id=bl.id, bus_id=bus.id)[0].time.strftime('%H:%M')
                         this_bus_data['boardingloc_id'] = Bus_boarding_time.objects.filter(loc_id=bl.id, bus_id=bus.id)[0].loc.id
                         availible_bus.append(this_bus_data)
-                print(availible_bus)
+                # print(availible_bus)
 
                 if len(availible_bus) > 0:
                     ret_dic[str(bl.loc.busboardloc)] = availible_bus
@@ -314,7 +330,7 @@ class select_new_boardingloc(APIView):
 
         try:
             order_id = info['order_id']
-            boardingloc_id = info['']
+            boardingloc_id = info['boardingloc_id']
             bus_id = info['bus_id']
 
             order = TicketOrder.objects.get(id=order_id)
@@ -350,11 +366,11 @@ class select_new_boardingloc(APIView):
                     # 设置boardingloc
                     select_boardingloc = Boardingloc.objects.select_for_update().filter(id=boardingloc_id)
                     order.bus_loc = select_boardingloc[0]  # 订单绑定
-                    select_boardingloc.update(choice_peoplenum=F('choice_peoplenum'+1))  # 上车点人数+
+                    select_boardingloc.update(choice_peoplenum=F('choice_peoplenum')+1)  # 上车点人数+
                     # 设置上车时间，该车该点上车人数
                     select_bus_loc_time = Bus_boarding_time.objects.select_for_update().filter(bus_id=select_bus[0].id, loc_id=boardingloc_id)
                     order.bus_time = select_bus_loc_time[0]  # 订单绑定
-                    select_bus_loc_time.update(boarding_peoplenum=F('boarding_peoplenum'+1))  # 该车经过该点上车人数+1
+                    select_bus_loc_time.update(boarding_peoplenum=F('boarding_peoplenum')+1)  # 该车经过该点上车人数+1
                     
                     # 将订单锁定
                     order.status = 3
