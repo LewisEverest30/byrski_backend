@@ -316,13 +316,13 @@ class OrderSerializerItinerary2(serializers.ModelSerializer):
         # 活动第一天前
             # 上车点有效 0
             # 上车点无效 1
-        # 活动最后半个个小时
-            # 6
+
         # 活动第一天
-            # 未上车 2
-            # 已上车未启动 3
-            # 已启动活动指引 4
-            # 已完成/跳过活动指引 5
+            # 去程未上车 2
+            # 去程已上车，且返程以上车 6
+            # 去程已上车，返程未上车，未启动教程 3
+            # 去程已上车，返程未上车，已启动活动指引 4
+            # 去程已上车，返程未上车，已完成/跳过活动指引 5
 
         current_date = timezone.now().date()
         # current_time = timezone.now().time()
@@ -332,14 +332,16 @@ class OrderSerializerItinerary2(serializers.ModelSerializer):
                 return 1
             else:                    # 上车点有效
                 return 0
-        elif obj.ticket.activity.activity_end_date == current_date and \
-                one_hour_later > obj.ticket.activity.activity_return_time:      # 返程时间半小时内
-            return 6
+        # elif obj.ticket.activity.activity_end_date == current_date and \
+        #         one_hour_later > obj.ticket.activity.activity_return_time:      # 返程时间半小时内
+        #     return 6
         else:                                                                   # 其他时间内
-            if obj.go_boarded == False:  # 还未上车
+            if obj.go_boarded == False:  # 去程还未上车
                 return 2
             else:                        # 上车了
-                if obj.completed_steps == 0:   # 未启动活动指引
+                if obj.return_boarded == True:  # 返程已上车
+                    return 6
+                elif obj.completed_steps == 0:   # 未启动活动指引
                     return 3
                 elif obj.completed_steps == len(ACTIVITY_GUIDE):  # 已完成/跳过活动指引
                     return 5

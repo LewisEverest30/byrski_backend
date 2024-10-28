@@ -410,11 +410,20 @@ class set_return_boarded(APIView):
 
         try:
             order_id = info['order_id']
-            TicketOrder.objects.filter(id=order_id).update(return_boarded=True)
-            return Response({'ret':0})
+            order = TicketOrder.objects.filter(id=order_id)
+            
+            current_date = timezone.now().date()
+            one_hour_later = (timezone.now() + timedelta(minutes=30)).time()
+            if order[0].ticket.activity.activity_end_date == current_date and \
+                one_hour_later > order.ticket.activity.activity_return_time:      # 返程时间半小时内
+                order.update(return_boarded=True)
+                return Response({'ret':0, 'errmsg':None})
+            else:
+                return Response({'ret': 420803, 'errmsg':'集合时间前半小时可以上车签到'})
+            
         except Exception as e:
             print(repr(e))
-            return Response({'ret': 420801})
+            return Response({'ret': 420801, 'errmsg':'其他错误'})
 
 
 # 当前活动指引所在步骤
@@ -444,7 +453,7 @@ class get_activity_guide_step(APIView):
                 return Response({'ret': 420903, 
                                  'errmsg': '活动指引已完成',
                                  'data':{
-                                    'current_step': total_step,
+                                    'current_step': total_step+1,
                                     'total_step': total_step,
                                     'content': '活动指引已完成'
                                 }
@@ -481,7 +490,7 @@ class next_activity_guide_step(APIView):
                 return Response({'ret': 421002, 
                                  'errmsg': '在这步前已完成所有活动指引',
                                  'data':{
-                                    'current_step': total_step,
+                                    'current_step': total_step + 1,
                                     'total_step': total_step,
                                     'content': '在这步前已完成所有活动指引'
                                 }
@@ -491,7 +500,7 @@ class next_activity_guide_step(APIView):
                 return Response({'ret': 421003, 
                                  'errmsg': '成功完成所有活动指引',
                                  'data':{
-                                        'current_step': total_step,
+                                        'current_step': total_step + 1,
                                         'total_step': total_step,
                                         'content': '成功完成所有活动指引'
                                     }
