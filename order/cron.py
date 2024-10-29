@@ -264,6 +264,7 @@ def set_activity_expire():
 
 
 # 锁票日期
+# todo-f 自动将已完成的订单设为返程已上车
 def set_activity_locked():
     print ('================ SET ACTIVITY LOCKED ',str(datetime.datetime.now()), '================')
     # 将到期的活动设为锁票
@@ -310,5 +311,6 @@ def set_activity_locked():
                                                        status=2,
                                                        bus_loc__isnull=True).update(status=3)
 
-
+    # 处理已经完成订单，将这些订单设为返程已上车
+    TicketOrder.set_orders_finished()
     return

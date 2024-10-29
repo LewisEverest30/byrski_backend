@@ -41,25 +41,26 @@ class ExportOrderExcelMixin(object):
                 #    , '', '', '', '', 
                    ])
         for obj in queryset:
-            data = [
-                f'{obj.ordernumber}',
-                f'{obj.user.name}',
-                f'{obj.user.idnumber}',
-                f'{obj.user.phone}',
-                '男' if obj.user.gender==0 else '女',
-                f'{obj.user.school}',
-                f'{obj.bus_loc.loc.busboardloc}',
-                f'{obj.cost}',
-                f'{obj.ticket.activity.activity_template.ski_resort.name}',
-                f'{obj.ticket.activity.activity_template.name}',
-                f'{obj.ticket.activity.activity_begin_date}',
-                f'{obj.ticket.activity.activity_end_date}',
-                ]
-            row = ws.append(data)
+            if obj.status==2 or obj.status==3:
+                data = [
+                    f'{obj.ordernumber}',
+                    f'{obj.user.name}',
+                    f'{obj.user.idnumber}',
+                    f'{obj.user.phone}',
+                    '男' if obj.user.gender==0 else '女',
+                    f'{obj.user.school}',
+                    f'{obj.bus_loc.loc.busboardloc}',
+                    f'{obj.cost}',
+                    f'{obj.ticket.activity.activity_template.ski_resort.name}',
+                    f'{obj.ticket.activity.activity_template.name}',
+                    f'{obj.ticket.activity.activity_begin_date}',
+                    f'{obj.ticket.activity.activity_end_date}',
+                    ]
+                row = ws.append(data)
 
         wb.save(response)
         return response
-    export_as_excel.short_description = '导出Excel'
+    export_as_excel.short_description = '将所选订单中有效的导出为xlsx文件'
 
 # ========================================Admin==================================================
 # 每次活动的具体的大巴车
@@ -96,8 +97,9 @@ class TicketOrderAdmin(admin.ModelAdmin, ExportOrderExcelMixin):
     list_display_links = ['ordernumber']
     actions = ['export_as_excel']
 
-    list_filter = ('status', 'go_boarded', 'return_boarded', )
-    search_fields = ('user__name', 'ordernumber', 'ticket__activity', 'bus_loc__loc__campus')
+    list_filter = ('status', 'go_boarded', 'return_boarded', 'ticket__activity__activity_begin_date')
+    search_fields = ('user__name', 'ordernumber', 'ticket__activity__activity_template__name', 'bus_loc__loc__busboardloc',
+                     'ticket__activity__activity_begin_date')
 
 
 admin.site.register(Bustype)

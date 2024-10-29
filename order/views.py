@@ -94,21 +94,19 @@ class create_ticket_order(APIView):
                     # 绑定微信群（取消和退款的也会占用群名额）
                     this_acti_order_num = TicketOrder.objects.filter(ticket__activity_id=ticket.activity.id).count()
                     wxgroup_index = int(this_acti_order_num / WXGROUP_MAX_NUM)
-                    wxgroup_choice = ActivityWxGroup.objects.filter(activity_id=ticket.activity.id).order_by('id')[wxgroup_index]
+                    # wxgroup_choice = ActivityWxGroup.objects.filter(activity_id=ticket.activity.id).order_by('id')[wxgroup_index]
                     
-                    
-                    # try:
-                    #     wxgroup_choice = ActivityWxGroup.objects.filter(activity_id=ticket.activity.id).order_by('id')[wxgroup_index]
-                    # except Exception as e:
-                    #     print(repr(e))
-                    #     return Response({'ret': 420008, 'errmsg': '其他错误，请检查提交的数据是否合法', 
-                    #                     'data': {
-                    #                         'order_id':None, 
-                    #                         'ordernumber':None, 
-                    #                         'ip': ip
-                    #                     },
-                    # 绑定微信群（取消和退款的也会占用群名额）                    
-                    #                     })
+                    try:
+                        wxgroup_choice = ActivityWxGroup.objects.filter(activity_id=ticket.activity.id).order_by('id')[wxgroup_index]
+                    except Exception as e:
+                        print(repr(e))
+                        return Response({'ret': 420010, 'errmsg': '可用微信群数量不足', 
+                                        'data': {
+                                            'order_id':None, 
+                                            'ordernumber':None, 
+                                            'ip': ip
+                                        },
+                                        })
                     
                     
                     # 创建订单
@@ -116,7 +114,8 @@ class create_ticket_order(APIView):
                     ordernumber = ('out_trade_no_'+str(datetime.datetime.now())).replace(' ', '').replace('-', '').replace(':', '').replace('.', '')[:32]
                     
                     neworder = TicketOrder.objects.create(ordernumber=ordernumber , user_id=userid, ticket_id=ticket_id, 
-                                                  bus_loc_id=bus_loc_id, wxgroup_id=wxgroup_choice.id)
+                                                  bus_loc_id=bus_loc_id, wxgroup_id=wxgroup_choice.id,
+                                                  cost=ticket.price)
                     
                     # 上车点人数+1
                     Boardingloc.objects.filter(id=bus_loc_id).update(choice_peoplenum=F('choice_peoplenum')+1)
@@ -534,6 +533,47 @@ class set_activity_guide_finished(APIView):
         try:
             order_id = info['order_id']
             TicketOrder.objects.filter(id=order_id).update(completed_steps=len(ACTIVITY_GUIDE))
+            return Response({'ret':0})
+        except Exception as e:
+            print(repr(e))
+            return Response({'ret': 421101})
+
+
+
+# 获取所有订单
+class get_ticket_order_list_by_status(APIView):
+    authentication_classes = [MyJWTAuthentication, ]
+
+    def post(self,request,*args,**kwargs):
+        userid = request.user['userid']
+        info = json.loads(request.body)
+
+        try:
+            # 待付款 1  === 已取消+待付款
+            # 进行中 2  === 已付款+已锁票 且未完成
+            # 已完成 3  === 已付款+已锁票 且返程已上车
+            # 退款售后 4 === 退款中/已退款
+
+
+            status = info['status']
+            if status == 0:  # 全部
+                orders = TicketOrder.objects.filter(user_id=userid)
+            elif status == 1:
+                orders = TicketOrder.objects.filter(Q(user_id=userid) & Q(status=1))
+            elif status == 2:
+                orders = TicketOrder.objects.filter(user_id=userid, status=status)
+            elif status == 3:
+                orders = TicketOrder.objects.filter(user_id=userid, status=status)
+            elif status == 4:
+                orders = TicketOrder.objects.filter(user_id=userid, status=status)
+            
+            serializer = OrderSerializer2(instance=orders, many=True)
+            data = serializer.data
+            for i in range(len(data)):
+                del data[i]['user']
+                del data[i]['wxgroup']
+                del data[i]['bus_loc']
+                
             return Response({'ret':0})
         except Exception as e:
             print(repr(e))
