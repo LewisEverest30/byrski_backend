@@ -5,6 +5,8 @@ from datetime import timedelta
 from rest_framework import serializers
 from django.conf import settings
 from django.db.models import Q, F, Sum
+from django.db import transaction
+from django.core.validators import MinValueValidator
 
 from user.models import User, Leader, LeaderSerializer
 from activity.models import Ticket, ActivityWxGroup, Activity, Boardingloc
@@ -85,8 +87,11 @@ class TicketOrder(models.Model):
 
     user = models.ForeignKey(verbose_name='用户', to=User, on_delete=models.CASCADE)
     ticket = models.ForeignKey(verbose_name='票', to=Ticket, on_delete=models.PROTECT)
+    # todo 删去cost的default
+    cost = models.DecimalField(verbose_name='实付款', null=False, blank=False, max_digits=7, decimal_places=2, default=1,
+                                validators=[MinValueValidator(1)])    
     wxgroup = models.ForeignKey(verbose_name='微信群', to=ActivityWxGroup, on_delete=models.SET_NULL, null=True, blank=True)
-    # 允许上车点被删，回set_null
+    # 允许上车点被删，set_null
     bus_loc = models.ForeignKey(verbose_name='上车点', to=Boardingloc, null=True, on_delete=models.SET_NULL)
     
     bus = models.ForeignKey(verbose_name='大巴', to=Bus, null=True, on_delete=models.SET_NULL, blank=True)
@@ -115,21 +120,30 @@ class TicketOrder(models.Model):
         threshold_time = now - timedelta(minutes=20)
         # 所有 create_time 小于 threshold_time 的记录，
         # 即20分钟前创建且未付款的订单，自动取消
-        orders = cls.objects.filter(status=1, create_time__lt=threshold_time)
-        orders.update(status=0)
+        with transaction.atomic():
+            orders = cls.objects.select_for_update().filter(status=1, create_time__lt=threshold_time)
+            orders.update(status=0)
 
-        # todo-f 移除订单有效性时，有一套需要联动的数据
-        for order in orders:
-            # 上车点人数-1(未截止时退票需要，已截止后上车点有效不能退/无效不需要)
-            if order.bus_loc is not None:
-                Boardingloc.objects.filter(id=order.bus_loc.id).update(choice_peoplenum=F('choice_peoplenum')-1)
+            # todo-f 移除订单有效性时，有一套需要联动的数据
+            for order in orders:
+                # 上车点人数-1(未截止时退票需要，已截止后上车点有效不能退/无效不需要)
+                if order.bus_loc is not None:
+                    Boardingloc.objects.filter(id=order.bus_loc.id).update(choice_peoplenum=F('choice_peoplenum')-1)
 
-            # 活动参与人数-1
-            Activity.objects.filter(id=order.ticket.activity.id).update(current_participant=F('current_participant')-1)
-            # 票销量-1
-            Ticket.objects.filter(id=order.ticket.id).update(sales=F('sales')-1)
-            # 用户积分-K
-            User.objects.filter(id=order.user.id).update(points=F('points')-USER_POINTS_INCREASE_DELTA)
+                # 活动参与人数-1
+                Activity.objects.filter(id=order.ticket.activity.id).update(current_participant=F('current_participant')-1)
+                # 票销量-1
+                Ticket.objects.filter(id=order.ticket.id).update(sales=F('sales')-1)
+                # 用户积分-K
+                User.objects.filter(id=order.user.id).update(points=F('points')-USER_POINTS_INCREASE_DELTA)
+
+    @classmethod
+    def set_orders_finished(cls):
+        # todo 当前日期超过活动最后日期的，自动设置为已完成状态
+        with transaction.atomic():
+            today = timezone.now().date()
+            cls.objects.select_for_update().filter(ticket__activity__activity_end_date__lt=today).update(return_boarded=True)
+
 
 
 
@@ -312,6 +326,7 @@ class OrderSerializerItinerary2(serializers.ModelSerializer):
         # 4 -- 活动指引已开始，显示活动指引各个步骤
         # 5 -- 已完成/跳过活动指引,，显示返程信息，不显示返程上车按钮
         # 6 -- 临近返程集合，显示返程信息和返程已上车按钮
+        # todo 验票页面
 
         # 活动第一天前
             # 上车点有效 0

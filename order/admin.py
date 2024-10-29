@@ -26,6 +26,40 @@ class ExportExcelMixin(object):
     export_as_excel.short_description = '导出Excel'
 
 
+# 导出Excel，专用于订单
+class ExportOrderExcelMixin(object):
+    def export_as_excel(self, request, queryset):
+        meta = self.model._meta
+        # field_names = ["ordernumber", 'user_name', 'ticket', 'ticket__price', 'return_boarded', 'create_time']
+
+        response = HttpResponse(content_type='application/msexcel')
+        response['Content-Disposition'] = f'attachment; filename={meta.object_name}.xlsx'
+        wb = Workbook()
+        ws = wb.active
+        ws.append(['订单号', '报名人', '身份证号', '手机号', '性别', '学校', '上车点', '实付金额', '雪场名称', '活动名称',
+                   '活动开始日期', '活动结束日期'
+                #    , '', '', '', '', 
+                   ])
+        for obj in queryset:
+            data = [
+                f'{obj.ordernumber}',
+                f'{obj.user.name}',
+                f'{obj.user.idnumber}',
+                f'{obj.user.phone}',
+                '男' if obj.user.gender==0 else '女',
+                f'{obj.user.school}',
+                f'{obj.bus_loc.loc.busboardloc}',
+                f'{obj.cost}',
+                f'{obj.ticket.activity.activity_template.ski_resort.name}',
+                f'{obj.ticket.activity.activity_template.name}',
+                f'{obj.ticket.activity.activity_begin_date}',
+                f'{obj.ticket.activity.activity_end_date}',
+                ]
+            row = ws.append(data)
+
+        wb.save(response)
+        return response
+    export_as_excel.short_description = '导出Excel'
 
 # ========================================Admin==================================================
 # 每次活动的具体的大巴车
@@ -54,7 +88,7 @@ class Bus_boarding_timeAdmin(admin.ModelAdmin, ExportExcelMixin):
 
 
 # 雪票订单
-class TicketOrderAdmin(admin.ModelAdmin, ExportExcelMixin):
+class TicketOrderAdmin(admin.ModelAdmin, ExportOrderExcelMixin):
     list_display = ('id', "ordernumber", 'user', 'ticket', 'go_boarded', 'return_boarded',
                      'bus_loc', 'create_time', 'status')
     # readonly_fields = ("ordernumber", 'user', 'activity', 'need_rent',
