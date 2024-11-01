@@ -1,0 +1,5 @@
+*.pyc
+*.pem
+*.key
+*.zip
+*.sqlite3
