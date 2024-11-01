@@ -4,12 +4,13 @@ from rest_framework import serializers
 from django.utils import timezone
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.core.validators import MinValueValidator, MaxValueValidator
 
 
 
 
 class Accesstoken(models.Model):
-    access_token = models.CharField(max_length=1024, unique=True)
+    access_token = models.CharField(max_length=512)
     expire_time = models.DateTimeField()
 
 
@@ -65,7 +66,8 @@ class User(models.Model):
     height = models.IntegerField(verbose_name='身高(cm)', null=True, blank=True)
     weight = models.IntegerField(verbose_name='体重(kg)', null=True, blank=True)
     foot_length = models.IntegerField(verbose_name='足长(mm)', null=True, blank=True)
-    skiboots_size = models.IntegerField(verbose_name='鞋码', null=True, blank=True)
+    skiboots_size = models.DecimalField(verbose_name='鞋码', null=True, blank=True, max_digits=3, decimal_places=1,
+                                        validators=[MinValueValidator(30), MaxValueValidator(50)])
     # skiboots_size_1 = models.IntegerField(verbose_name='单板雪鞋尺码', null=True, blank=True)
     # skiboots_size_2 = models.IntegerField(verbose_name='双板雪鞋尺码', null=True, blank=True)
     snowboard_size_1 = models.IntegerField(verbose_name='单板板长', null=True, blank=True)
@@ -137,7 +139,7 @@ class UserSerializerBasic(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'name', 'gender', 'phone', 
-                  'height', 'weight', 'foot_length',  
+                  'height', 'weight', 'skiboots_size',  
                   'ski_board', 'ski_level', 'ski_favor'
                   ]
 
@@ -170,7 +172,6 @@ class UserSerializerHome(serializers.ModelSerializer):
     def get_registration_time(self, obj):
         time_now = timezone.now()
         time_regi = obj.create_time
-        # todo
         return str((time_now - time_regi).days)
     
     
