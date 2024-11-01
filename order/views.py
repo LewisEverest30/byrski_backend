@@ -10,7 +10,10 @@ from user.models import User
 from user.auth import MyJWTAuthentication
 from .models import *
 from activity.utils import ACTIVITY_GUIDE
+from qrverif import QRVerif
 
+# 二维码时效（s）
+QR_VALID_PERIOD = 40   
 
 # 下单
 class create_ticket_order(APIView):
@@ -720,3 +723,57 @@ class get_all_leader_itinerary(APIView):
 #         except Exception as e:
 #             print(repr(e))
 #             return Response({'ret': 421501, 'errmsg': '其他错误'})
+
+
+
+# ================================二维码验证相关================================
+
+class get_itinerary_qrcode(APIView):
+
+    authentication_classes = [MyJWTAuthentication, ]
+    def get(self,request,*args,**kwargs):
+        userid = request.user['userid']
+        # userid = request.query_params['userid']   #本地测试无验证使用
+        orders = TicketOrder.objects.filter(Q(user_id=userid))
+        if len(orders) < 1:
+            return Response({'ret': 421201,'errmsg':"行程不存在",'data':None})
+        
+        qr_encode = None
+        for order in orders:
+            if not order.return_boarded :
+                if order.ticket_checked == 1:
+                    return Response({'ret': 421202,'errmsg':"已验票",'data':None})
+                orderNumber = order.ordernumber
+                qr_encode = QRVerif.encrypt_info(order_id=orderNumber)
+
+        if qr_encode:
+            return Response({'ret': 200,'data':qr_encode})
+        else:
+            return Response({'ret': 421203, 'errmsg': "加密错误",'data':None})
+
+
+            
+
+class verify_itinerary_qrcode(APIView):
+    authentication_classes = [MyJWTAuthentication, ]
+
+    def post(self,request,*args,**kwargs):
+        # userid = request.user['userid']    # 领队ID
+        info = json.loads(request.body)
+        try:
+            qr_code = info['qr_code']
+            timestamp, ordernumber, cur_time = QRVerif.decrypt_info(qr_code)
+            if int(cur_time) - int(timestamp) < QR_VALID_PERIOD:
+                orders = TicketOrder.objects.filter(Q(ordernumber=ordernumber) & Q(ticket_checked=0))
+                if len(orders):
+                    TicketOrder.objects.filter(Q(ordernumber=ordernumber)).update(ticket_checked=1)
+                    return Response({'ret': 200,'data':'Success'})
+                else:
+                    return Response({'ret': 421301,'errmsg':"已验票",'data':None})
+            else:
+                return Response({'ret': 421302,'errmsg':"二维码超时",'data':None})
+
+        except:
+            return Response({'ret': 421303,'errmsg':"加密密钥错误",'data':None})
+
+

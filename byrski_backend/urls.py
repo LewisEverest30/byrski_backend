@@ -55,6 +55,8 @@ urlpatterns = [
     path('python/cancel_ticket_order', cancel_ticket_order.as_view()),
     path('python/delete_ticket_order', delete_ticket_order.as_view()),
 
+    path('python/get_itinerary_qrcode',get_itinerary_qrcode.as_view()),
+    path('verify_itinerary_qrcode',verify_itinerary_qrcode.as_view()),
     # path('python/get_bus_boarding_list', get_bus_boarding_passenger_list.as_view()),
 
     # path('get_busloc', get_busloc.as_view()),
