@@ -71,6 +71,7 @@ class create_ticket_order(APIView):
             user.gender = info['gender']
             user.phone = info['phone']
             user.idnumber = info['idnumber']
+            user.school = info['school']
             user.save()
 
             # 判断可报名状态
@@ -91,7 +92,7 @@ class create_ticket_order(APIView):
                                                      (Q(status=1) | Q(status=2) | Q(status=3) | Q(status=4)))  # 已取消和完成退款的为无效的
             if order_found.count() == 0:
                 try:
-                    # 绑定微信群（取消和退款的也会占用群名额）
+                    # 绑定微信群（取消和退款的和删除的也会占用群名额）
                     this_acti_order_num = TicketOrder.objects.filter(ticket__activity_id=ticket.activity.id).count()
                     wxgroup_index = int(this_acti_order_num / WXGROUP_MAX_NUM)
                     # wxgroup_choice = ActivityWxGroup.objects.filter(activity_id=ticket.activity.id).order_by('id')[wxgroup_index]
@@ -170,7 +171,7 @@ class get_itinerary_of_certain_order(APIView):
         info = json.loads(request.body)
         try:
             order_id = info['id']
-            order = TicketOrder.objects.get(id=order_id)
+            order = TicketOrder.objects.get(Q(id=order_id) & ~Q(status=6))
             serializer = OrderSerializer2(instance=order, many=False)
             return Response({'ret': 0, 'data': serializer.data})
         except Exception as e:
@@ -210,9 +211,9 @@ class get_detail_of_certain_itinerary(APIView):
             userid = request.user['userid']
             order_id = info['id']
 
-            order = TicketOrder.objects.filter(user_id=userid, id=order_id)
+            order = TicketOrder.objects.get(Q(id=order_id) & ~Q(status=6))
             
-            serializer = OrderSerializerItinerary2(instance=order[0], many=False)
+            serializer = OrderSerializerItinerary2(instance=order, many=False)
             
             return Response({'ret': 0, 'data': serializer.data})
         except Exception as e:
@@ -232,7 +233,7 @@ class get_available_boardingloc_of_certain_itinerary(APIView):
 
             ret_dic = {}  # key-上车点，value-大巴车
             # 先查上车点
-            activity_id = TicketOrder.objects.get(id=order_id).ticket.activity.id
+            activity_id = TicketOrder.objects.get(Q(id=order_id) & ~Q(status=6)).ticket.activity.id
             boardinglocs = Boardingloc.objects.filter(activity_id=activity_id)
             for bl in boardinglocs:  # 对于所有的目前可用的上车点
                 # print(bl)
@@ -273,11 +274,11 @@ class try_refund_ticket_order(APIView):
         try:
             order_id = info['order_id']
 
-            order = TicketOrder.objects.get(id=order_id)
+            order = TicketOrder.objects.get(Q(id=order_id) & ~Q(status=6))
             # 对于已发起退款或已退款的，不要重复退款
             if order.status == 0:
                 return Response({'ret': 420506, 'errmsg': '该订单已取消'})
-            elif order.status == 0:
+            elif order.status == 1:
                 return Response({'ret': 420508, 'errmsg': '该订单未付款'})
             elif order.status == 3:
                 return Response({'ret': 420507, 'errmsg': '该订单已锁定'})
@@ -332,7 +333,7 @@ class select_new_boardingloc(APIView):
             boardingloc_id = info['boardingloc_id']
             bus_id = info['bus_id']
 
-            order = TicketOrder.objects.get(id=order_id)
+            order = TicketOrder.objects.get(Q(id=order_id) & ~Q(status=6))
             # 对于已发起退款或已退款的，修改上车点无效
             if order.status == 0:
                 return Response({'ret': 420606, 'errmsg': '该订单已取消'})
@@ -354,7 +355,7 @@ class select_new_boardingloc(APIView):
             # 判断所选大巴是否有空位
             with transaction.atomic():
                 select_bus = Bus.objects.select_for_update().filter(id=bus_id)
-                # 检查剩余名额# todo 注意检查空位数量，行锁！！
+                # 检查剩余名额
                 if select_bus[0].max_people - select_bus[0].carry_peoplenum <= 0:
                     return Response({'ret': 420609, 'errmsg': '该车已经没有空位'})
                 else:
@@ -392,7 +393,7 @@ class set_go_boarded(APIView):
 
         try:
             order_id = info['order_id']
-            TicketOrder.objects.filter(id=order_id).update(go_boarded=True)
+            TicketOrder.objects.filter(Q(id=order_id) & ~Q(status=6)).update(go_boarded=True)
             return Response({'ret':0})
         except Exception as e:
             print(repr(e))
@@ -409,7 +410,7 @@ class set_return_boarded(APIView):
 
         try:
             order_id = info['order_id']
-            order = TicketOrder.objects.filter(id=order_id)
+            order = TicketOrder.objects.filter(Q(id=order_id) & ~Q(status=6))
             
             current_date = timezone.now().date()
             one_hour_later = (timezone.now() + timedelta(minutes=30)).time()
@@ -435,7 +436,7 @@ class get_activity_guide_step(APIView):
 
         try:
             order_id = info['order_id']
-            order = TicketOrder.objects.get(id=order_id)
+            order = TicketOrder.objects.get(Q(id=order_id) & ~Q(status=6))
             current_step = order.completed_steps
             total_step = len(ACTIVITY_GUIDE) - 1  # 0不算在内
             
@@ -484,7 +485,7 @@ class next_activity_guide_step(APIView):
             order_id = info['order_id']
             total_step = len(ACTIVITY_GUIDE) - 1  # 0不算在内
 
-            order = TicketOrder.objects.filter(id=order_id)
+            order = TicketOrder.objects.filter(Q(id=order_id) & ~Q(status=6))
             if order[0].completed_steps == total_step + 1:  # 已完成
                 return Response({'ret': 421002, 
                                  'errmsg': '在这步前已完成所有活动指引',
@@ -532,14 +533,14 @@ class set_activity_guide_finished(APIView):
 
         try:
             order_id = info['order_id']
-            TicketOrder.objects.filter(id=order_id).update(completed_steps=len(ACTIVITY_GUIDE))
+            TicketOrder.objects.filter(Q(id=order_id) & ~Q(status=6)).update(completed_steps=len(ACTIVITY_GUIDE))
             return Response({'ret':0})
         except Exception as e:
             print(repr(e))
             return Response({'ret': 421101})
 
 
-
+# ===================================================订单相关===============================================
 # 获取所有订单
 class get_ticket_order_list_by_status(APIView):
     authentication_classes = [MyJWTAuthentication, ]
@@ -549,32 +550,173 @@ class get_ticket_order_list_by_status(APIView):
         info = json.loads(request.body)
 
         try:
-            # 待付款 1  === 已取消+待付款
+            # 待付款 1  === 待付款
             # 进行中 2  === 已付款+已锁票 且未完成
-            # 已完成 3  === 已付款+已锁票 且返程已上车
-            # 退款售后 4 === 退款中/已退款
+            # 退款售后 3 === 退款中/已退款
 
-
+            print(userid)
             status = info['status']
-            if status == 0:  # 全部
-                orders = TicketOrder.objects.filter(user_id=userid)
-            elif status == 1:
+            if status == 0:  # 全部（不包括已删除的）
+                orders = TicketOrder.objects.filter(Q(user_id=userid) & ~Q(status=6))
+            elif status == 1:  # 待付款
                 orders = TicketOrder.objects.filter(Q(user_id=userid) & Q(status=1))
-            elif status == 2:
-                orders = TicketOrder.objects.filter(user_id=userid, status=status)
-            elif status == 3:
-                orders = TicketOrder.objects.filter(user_id=userid, status=status)
-            elif status == 4:
-                orders = TicketOrder.objects.filter(user_id=userid, status=status)
+            elif status == 2:  # 进行中
+                orders = TicketOrder.objects.filter(Q(user_id=userid) & (Q(status=2) | Q(status=3)) & Q(return_boarded=False))
+            elif status == 3:  # 退款售后
+                orders = TicketOrder.objects.filter(Q(user_id=userid) & (Q(status=4) | Q(status=5)))
             
-            serializer = OrderSerializer2(instance=orders, many=True)
-            data = serializer.data
-            for i in range(len(data)):
-                del data[i]['user']
-                del data[i]['wxgroup']
-                del data[i]['bus_loc']
-                
-            return Response({'ret':0})
+            serializer = OrderSerializer3(instance=orders, many=True)
+            data = serializer.data                
+            return Response({'ret':0, 'data':data})
         except Exception as e:
             print(repr(e))
-            return Response({'ret': 421101})
+            return Response({'ret': 421201, 'data':None})
+
+
+# 获取订单详情
+class get_detail_of_certain_ticket_order(APIView):
+    authentication_classes = [MyJWTAuthentication, ]
+
+    def post(self,request,*args,**kwargs):
+        userid = request.user['userid']
+        info = json.loads(request.body)
+
+        try:
+            order_id = info['order_id']
+            order = TicketOrder.objects.get(Q(id=order_id) & ~Q(status=6))
+            
+            serializer = OrderSerializer4(instance=order, many=False)
+            data = serializer.data                
+            return Response({'ret':0, 'data':data})
+        except Exception as e:
+            print(repr(e))
+            return Response({'ret': 421301, 'data':None})
+
+
+# 取消订单
+class cancel_ticket_order(APIView):
+    authentication_classes = [MyJWTAuthentication, ]
+
+    def post(self,request,*args,**kwargs):
+        userid = request.user['userid']
+
+        info = json.loads(request.body)
+
+        try:
+            order_id = info['order_id']
+
+            order = TicketOrder.objects.get(Q(id=order_id) & ~Q(status=6))
+            # 订单状态，只有待付款状态下可以取消
+            if order.status == 0:
+                return Response({'ret': 421406, 'errmsg': '该订单已取消'})
+            elif order.status == 2:
+                return Response({'ret': 421408, 'errmsg': '该订单已付款'})
+            elif order.status == 3:
+                return Response({'ret': 421407, 'errmsg': '该订单已锁定'})
+            elif order.status == 4:
+                return Response({'ret': 421404, 'errmsg': '该订单正在退款中'})
+            elif order.status == 5:
+                return Response({'ret': 421405, 'errmsg': '该订单已退款'})
+
+            # 活动状态
+            if order.ticket.activity.status == 2:  # 锁票
+                return Response({'ret': 421403, 'errmsg': '活动已经进入锁票阶段，无法取消'})
+
+            # =================下面是可取消的情况================
+            order.status = 0
+            order.save()
+            # 上车点人数-1
+            if order.bus_loc is not None:
+                Boardingloc.objects.filter(id=order.bus_loc.id).update(choice_peoplenum=F('choice_peoplenum')-1)
+            # 活动参与人数-1
+            Activity.objects.filter(id=order.ticket.activity.id).update(current_participant=F('current_participant')-1)
+            # 票销量-1
+            Ticket.objects.filter(id=order.ticket.id).update(sales=F('sales')-1)
+            # 用户积分-K
+            User.objects.filter(id=userid).update(points=F('points')-USER_POINTS_INCREASE_DELTA)
+            
+            return Response({'ret': 0, 'errmsg': None})
+
+        except Exception as e:
+            print(repr(e))
+            return Response({'ret': 421401, 'errmsg': '其他错误'})
+
+
+# 删除订单
+class delete_ticket_order(APIView):
+    authentication_classes = [MyJWTAuthentication, ]
+
+    def post(self,request,*args,**kwargs):
+        userid = request.user['userid']
+
+        info = json.loads(request.body)
+
+        try:
+            order_id = info['order_id']
+
+            order = TicketOrder.objects.get(Q(id=order_id))
+            # 订单状态
+            # 已取消，已退款和已完成的可以删除
+            if order.status == 6:
+                return Response({'ret': 421502, 'errmsg': '该订单已被删除'})
+            elif (order.status == 0) or (order.status == 5) or (order.return_boarded == True):
+                # 可删除的情况
+                order.status = 6
+                order.save()                
+                return Response({'ret': 0, 'errmsg': None})
+            else:
+                 return Response({'ret': 421503, 'errmsg': '该订单不能被删除'})
+
+        except Exception as e:
+            print(repr(e))
+            return Response({'ret': 421501, 'errmsg': '其他错误'})
+
+
+
+
+# ================================领队相关================================
+# 获取领队的行程列表
+class get_all_leader_itinerary(APIView):
+    authentication_classes = [MyJWTAuthentication, ]
+
+    def get(self,request,*args,**kwargs):
+        try:
+            userid = request.user['userid']
+            current_date = timezone.now().date()
+            orders = LeaderItinerary.objects.filter(Q(user_id=userid) & 
+                                            Q(ticket__activity__activity_end_date__gte=current_date))  # 不要已结束的行程
+            serializer = OrderSerializerItinerary1(instance=orders, many=True)
+            return Response({'ret': 0, 'data': list(serializer.data)})
+        except Exception as e:
+            print(repr(e))
+            return Response({'ret': 420201, 'data': None})
+
+
+# 获取上车情况
+# class get_bus_boarding_passenger_list(APIView):
+#     authentication_classes = [MyJWTAuthentication, ]
+
+#     def post(self,request,*args,**kwargs):
+#         userid = request.user['userid']
+
+#         info = json.loads(request.body)
+
+#         try:
+#             activity_id = info['activity_id']
+
+#             order = TicketOrder.objects.get(Q(id=order_id))
+#             # 订单状态
+#             # 已取消，已退款和已完成的可以删除
+#             if order.status == 6:
+#                 return Response({'ret': 421502, 'errmsg': '该订单已被删除'})
+#             elif (order.status == 0) or (order.status == 5) or (order.return_boarded == True):
+#                 # 可删除的情况
+#                 order.status = 6
+#                 order.save()                
+#                 return Response({'ret': 0, 'errmsg': None})
+#             else:
+#                  return Response({'ret': 421503, 'errmsg': '该订单不能被删除'})
+
+#         except Exception as e:
+#             print(repr(e))
+#             return Response({'ret': 421501, 'errmsg': '其他错误'})

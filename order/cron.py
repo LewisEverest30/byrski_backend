@@ -161,8 +161,8 @@ def set_activity_expire():
             n_big, n_small = get_bus_allocation(bus_big, bus_small, total_people_num)
             print('分配：', n_big, n_small)
 
-            # 查找本次活动这些区的订单，按对应上车点的人数从高到低排序
-            all_related_orders = TicketOrder.objects.filter(ticket__activity_id=acti.id, bus_loc__loc__area_id=area_id).order_by('-bus_loc__choice_peoplenum')
+            # 查找本次活动这些区的订单(排除已删除的)，按对应上车点的人数从高到低排序
+            all_related_orders = TicketOrder.objects.filter(Q(ticket__activity_id=acti.id) & Q(bus_loc__loc__area_id=area_id) & ~Q(status=6)).order_by('-bus_loc__choice_peoplenum')
             # print('all_related_orders', all_related_orders)
             if total_people_num != all_related_orders.count():
                 print ('Wrong people num(total_people_num != all_related_orders.count)')

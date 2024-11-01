@@ -14,8 +14,7 @@ from .utils import Validator_slope, Validator_schedule, SERVICE_STRING_SHOW, Val
 # 上车点区域范围
 class Area(models.Model):
     area_name = models.CharField('地区名称', max_length=100, unique=True)
-    # todo null=false
-    city_name = models.CharField('所属城市名称', max_length=100, null=True, blank=False)
+    city_name = models.CharField('所属城市名称', max_length=100, null=False, blank=False)
 
     def __str__(self) -> str:
         return self.area_name
@@ -44,8 +43,7 @@ class BoardingLocTemplate(models.Model):
 # 雪场
 class Skiresort(models.Model):
     name = models.CharField(verbose_name='滑雪场名', max_length=50, null=False, blank=False)
-    # todo null=false
-    area = models.ForeignKey(verbose_name='所在地区', to=Area, on_delete=models.CASCADE, null=True, blank=False)
+    area = models.ForeignKey(verbose_name='所在地区', to=Area, on_delete=models.CASCADE, null=False, blank=False)
     location = models.CharField(verbose_name='位置', max_length=300, null=False, blank=False)
     opening = models.CharField(verbose_name='营业时间', max_length=200, null=False, blank=False)
     phone = models.CharField(verbose_name='电话', max_length=11, null=False, blank=False)
@@ -231,11 +229,6 @@ class Ticket(models.Model):
 
 
 
-
-# =======================================================================================
-
-
-
 # ===============================序列化器============================================
 
 # 用于获取所有滑雪场
@@ -338,6 +331,7 @@ class TicketSerializer2(serializers.ModelSerializer):
     name = serializers.SerializerMethodField()
     begin_end = serializers.SerializerMethodField()
     service = serializers.SerializerMethodField()
+    cover = serializers.SerializerMethodField()
 
     def get_ticket_id(self, obj):
         return obj.id
@@ -369,10 +363,13 @@ class TicketSerializer2(serializers.ModelSerializer):
         service_dict = [SERVICES[s] for s in services]
         return service_dict
 
+    def get_cover(self, obj):
+        return settings.MEDIA_URL + str(obj.activity.activity_template.ski_resort.cover)
+
 
     class Meta:
         model = Ticket
-        fields = ['ticket_id', 'activity_id', 'activitytemplate_id', 'name', 'service', 'begin_end', 'price', 'original_price']
+        fields = ['ticket_id', 'activity_id', 'activitytemplate_id', 'name', 'service', 'cover', 'begin_end', 'price', 'original_price']
 
 
 # 用于获取模板详情

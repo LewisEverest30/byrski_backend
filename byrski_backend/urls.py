@@ -50,11 +50,12 @@ urlpatterns = [
     path('python/next_activity_guide_step', next_activity_guide_step.as_view()),
     path('python/set_activity_guide_finished', set_activity_guide_finished.as_view()),
 
-    # path('python/get_ticket_order_list_by_status', get_ticket_order_list_by_status.as_view()),
-    # path('python/cancel_ticket_order', cancel_ticket_order.as_view()),
-    # path('python/recreate_ticket_order', recreate_ticket_order.as_view()),
+    path('python/get_ticket_order_list_by_status', get_ticket_order_list_by_status.as_view()),
+    path('python/get_detail_of_certain_ticket_order', get_detail_of_certain_ticket_order.as_view()),
+    path('python/cancel_ticket_order', cancel_ticket_order.as_view()),
+    path('python/delete_ticket_order', delete_ticket_order.as_view()),
 
-    # path('python/get_bus_boarding_list', get_bus_boarding_list.as_view()),
+    # path('python/get_bus_boarding_list', get_bus_boarding_passenger_list.as_view()),
 
     # path('get_busloc', get_busloc.as_view()),
     # path('create_activity_order', create_activity_order.as_view()),

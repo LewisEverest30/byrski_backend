@@ -71,8 +71,8 @@ class Bus_boarding_timeInline(admin.TabularInline):
     readonly_fields = ('bus', 'loc', 'boarding_peoplenum',)
 class BusAdmin(admin.ModelAdmin, ExportExcelMixin):
     list_display = ('id', 'activity', 'car_number', 'driver_phone', 'carry_peoplenum', 'max_people', 'route', 'leader')
-    # todo readonly_fields = ('activity', 'max_people')
-    readonly_fields = ('max_people', )
+    readonly_fields = ('activity', 'max_people')
+    # readonly_fields = ('max_people', )
     list_display_links = ['activity']
     list_filter = ("activity", )
     search_fields = ('activity__activity_template', 'car_number', 'driver_phone')
@@ -90,7 +90,7 @@ class Bus_boarding_timeAdmin(admin.ModelAdmin, ExportExcelMixin):
 
 # 雪票订单
 class TicketOrderAdmin(admin.ModelAdmin, ExportOrderExcelMixin):
-    list_display = ('id', "ordernumber", 'user', 'ticket', 'go_boarded', 'return_boarded',
+    list_display = ('id', "ordernumber", 'user', 'ticket', 'go_boarded', 'return_boarded', 'cost',
                      'bus_loc', 'create_time', 'status')
     # readonly_fields = ("ordernumber", 'user', 'activity', 'need_rent',
     #                  'bus_loc', 'create_time', 'is_paid')
