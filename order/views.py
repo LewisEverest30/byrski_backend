@@ -736,20 +736,20 @@ class get_itinerary_qrcode(APIView):
         # userid = request.query_params['userid']   #本地测试无验证使用
         orders = TicketOrder.objects.filter(Q(user_id=userid))
         if len(orders) < 1:
-            return Response({'ret': 421201,'errmsg':"行程不存在",'data':None})
+            return Response({'ret': 422001,'errmsg':"行程不存在",'data':None})
         
         qr_encode = None
         for order in orders:
             if not order.return_boarded :
                 if order.ticket_checked == 1:
-                    return Response({'ret': 421202,'errmsg':"已验票",'data':None})
+                    return Response({'ret': 422002,'errmsg':"已验票",'data':None})
                 orderNumber = order.ordernumber
                 qr_encode = QRVerif.encrypt_info(order_id=orderNumber)
 
         if qr_encode:
             return Response({'ret': 200,'data':qr_encode})
         else:
-            return Response({'ret': 421203, 'errmsg': "加密错误",'data':None})
+            return Response({'ret': 422003, 'errmsg': "加密错误",'data':None})
 
 
             
@@ -769,11 +769,11 @@ class verify_itinerary_qrcode(APIView):
                     TicketOrder.objects.filter(Q(ordernumber=ordernumber)).update(ticket_checked=1)
                     return Response({'ret': 200,'data':'Success'})
                 else:
-                    return Response({'ret': 421301,'errmsg':"已验票",'data':None})
+                    return Response({'ret': 421101,'errmsg':"已验票",'data':None})
             else:
-                return Response({'ret': 421302,'errmsg':"二维码超时",'data':None})
+                return Response({'ret': 422102,'errmsg':"二维码超时",'data':None})
 
         except:
-            return Response({'ret': 421303,'errmsg':"加密密钥错误",'data':None})
+            return Response({'ret': 422103,'errmsg':"加密密钥错误",'data':None})
 
 
