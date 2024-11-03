@@ -72,7 +72,7 @@ class create_ticket_order(APIView):
             user.gender = info['gender']
             user.phone = info['phone']
             user.idnumber = info['idnumber']
-            user.school = info['school']
+            user.school_id = info['school_id']
             user.save()
 
             # 判断可报名状态
@@ -483,7 +483,7 @@ class set_activity_guide_finished(APIView):
 
 # ===================================================订单相关===============================================
 # 获取所有订单
-class get_ticket_order_list_by_status(APIView):
+class get_ticket_order_list_by_type(APIView):
     authentication_classes = [MyJWTAuthentication, ]
 
     def post(self,request,*args,**kwargs):
@@ -496,14 +496,14 @@ class get_ticket_order_list_by_status(APIView):
             # 退款售后 3 === 退款中/已退款
 
             print(userid)
-            status = info['status']
-            if status == 0:  # 全部（不包括已删除的）
+            status_type = info['type']
+            if status_type == 0:  # 全部（不包括已删除的）
                 orders = TicketOrder.objects.filter(Q(user_id=userid) & ~Q(status=6))
-            elif status == 1:  # 待付款
+            elif status_type == 1:  # 待付款
                 orders = TicketOrder.objects.filter(Q(user_id=userid) & Q(status=1))
-            elif status == 2:  # 进行中
+            elif status_type == 2:  # 进行中
                 orders = TicketOrder.objects.filter(Q(user_id=userid) & (Q(status=2) | Q(status=3)) & Q(return_boarded=False))
-            elif status == 3:  # 退款售后
+            elif status_type == 3:  # 退款售后
                 orders = TicketOrder.objects.filter(Q(user_id=userid) & (Q(status=4) | Q(status=5)))
             
             serializer = OrderSerializer3(instance=orders, many=True)

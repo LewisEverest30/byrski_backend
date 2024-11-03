@@ -48,7 +48,7 @@ class ExportOrderExcelMixin(object):
                     f'{obj.user.idnumber}',
                     f'{obj.user.phone}',
                     '男' if obj.user.gender==0 else '女',
-                    f'{obj.user.school}',
+                    f'{obj.user.school.name}',
                     f'{obj.bus_loc.loc.busboardloc}',
                     f'{obj.cost}',
                     f'{obj.ticket.activity.activity_template.ski_resort.name}',

@@ -52,7 +52,7 @@ urlpatterns = [
     path('python/next_activity_guide_step', next_activity_guide_step.as_view()),
     path('python/set_activity_guide_finished', set_activity_guide_finished.as_view()),
 
-    path('python/get_ticket_order_list_by_status', get_ticket_order_list_by_status.as_view()),
+    path('python/get_ticket_order_list_by_type', get_ticket_order_list_by_type.as_view()),
     path('python/get_detail_of_certain_ticket_order', get_detail_of_certain_ticket_order.as_view()),
     path('python/cancel_ticket_order', cancel_ticket_order.as_view()),
     path('python/delete_ticket_order', delete_ticket_order.as_view()),
@@ -61,7 +61,7 @@ urlpatterns = [
     path('python/get_detail_of_leader_itinerary', get_detail_of_leader_itinerary.as_view()),
     
     path('python/get_itinerary_qrcode', get_itinerary_qrcode.as_view()),
-    path('verify_itinerary_qrcode', verify_itinerary_qrcode.as_view()),
+    path('python/verify_itinerary_qrcode', verify_itinerary_qrcode.as_view()),
     # path('python/get_bus_boarding_list', get_bus_boarding_passenger_list.as_view()),
 
     # path('get_busloc', get_busloc.as_view()),

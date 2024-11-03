@@ -23,10 +23,18 @@ class Area(models.Model):
         verbose_name = "区域"
         verbose_name_plural = "区域"
 
+# 合作院校
+class School(models.Model):
+    name = models.CharField('学校名称', max_length=100, unique=True)
+    def __str__(self) -> str:
+        return self.name
+    class Meta:
+        verbose_name = "合作院校"
+        verbose_name_plural = "合作院校"
 
 # 上车点可选范围 
 class BoardingLocTemplate(models.Model):
-    school_name = models.CharField(verbose_name='学校名称', max_length=50)
+    school = models.ForeignKey(verbose_name='学校名称', to=School, null=True, blank=False, on_delete=models.PROTECT)
 
     campus = models.CharField(verbose_name='学校位置(学校名+校区)', max_length=150, unique=True)
     busboardloc  =  models.CharField(verbose_name='上车点(学校名+校区+门)', max_length=150, null=True)

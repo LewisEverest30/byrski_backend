@@ -6,7 +6,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.core.validators import MinValueValidator, MaxValueValidator
 
-
+from activity.models import School
 
 
 class Accesstoken(models.Model):
@@ -44,7 +44,7 @@ class User(models.Model):
     openid = models.CharField(verbose_name='openid', max_length=28, unique=True, db_index=True)
 
     name = models.CharField(verbose_name='姓名', max_length=15, null=True, blank=True)
-    school = models.CharField(verbose_name='学校', max_length=50, null=True, blank=True)
+    school = models.ForeignKey(verbose_name='学校', to=School, null=True, blank=True, on_delete=models.SET_NULL)
     # age = models.IntegerField(verbose_name='年龄', null=True, blank=True)
     phone = models.CharField(verbose_name='手机号', max_length=11, null=True, blank=True)
     # wxaccount = models.CharField(verbose_name='微信号', max_length=22)
@@ -121,7 +121,7 @@ def set_user_subject(sender, instance, created, **kwargs):
 
 
 class UserSerializer(serializers.ModelSerializer):
-    school = serializers.CharField(source='school.school_name')
+    school = serializers.CharField(source='school.name')
     school_id = serializers.IntegerField(source='school.id')
     class Meta:
         model = User

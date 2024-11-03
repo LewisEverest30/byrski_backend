@@ -204,7 +204,7 @@ admin.site.register(Skiresort, SkiresortAdmin)
 admin.site.register(ActivityTemplate, ActivityTemplateAdmin)
 admin.site.register(Activity, ActivityAdmin)
 admin.site.register(Boardingloc, BoardinglocAdmin)
-# admin.site.register(Bustype)
+admin.site.register(School)
 
 
 
