@@ -25,7 +25,7 @@ from order.views  import *
 
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path('python/admin/', admin.site.urls),
 
     path('python/login', login.as_view()),
     path('python/check_student', check_student.as_view()),
