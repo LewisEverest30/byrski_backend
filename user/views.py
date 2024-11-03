@@ -82,7 +82,7 @@ class check_student(APIView):
             'openid': openid,
             'wx_studentcheck_code': code
         }
-        stu_response = requests.post(self.checkstudent_url_mod.format(wx_access_token), data=post_data)
+        stu_response = requests.post(self.checkstudent_url_mod.format(wx_access_token), json=post_data)
         jsstu_response = stu_response.json()
 
         errcode = jsstu_response['errcode']
@@ -120,11 +120,11 @@ class get_user_basic_info(APIView):
 
         try:
             user = User.objects.get(id=userid)
+            serializer = UserSerializerBasic(instance=user, many=False)
+            return Response({'ret': 0, 'data': serializer.data})
         except Exception as e:
             print(repr(e))
             return Response({'ret': 400201, 'data': None})
-        serializer = UserSerializerBasic(instance=user, many=False)
-        return Response({'ret': 0, 'data': serializer.data})
 
 
 class update_user_basic_info(APIView):

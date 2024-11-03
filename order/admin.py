@@ -69,6 +69,11 @@ class Bus_boarding_timeInline(admin.TabularInline):
     model = Bus_boarding_time
     extra = 0  # 默认显示 0 个 
     readonly_fields = ('bus', 'loc', 'boarding_peoplenum',)
+class LeaderItineraryInline(admin.TabularInline):
+    fields = ('bus', 'leader', )
+    model = LeaderItinerary
+    extra = 0  # 默认显示 0 个 
+    readonly_fields = ('bus', )
 class BusAdmin(admin.ModelAdmin, ExportExcelMixin):
     list_display = ('id', 'activity', 'car_number', 'driver_phone', 'carry_peoplenum', 'max_people', 'route', 'leader')
     readonly_fields = ('activity', 'max_people')
@@ -77,7 +82,7 @@ class BusAdmin(admin.ModelAdmin, ExportExcelMixin):
     list_filter = ("activity", )
     search_fields = ('activity__activity_template', 'car_number', 'driver_phone')
     actions = ['export_as_excel']
-    inlines = [Bus_boarding_timeInline, ]
+    inlines = [Bus_boarding_timeInline, LeaderItineraryInline,]
 
 
 # 每次活动的大巴车-所经站点-时间-没站搭载人数
@@ -102,7 +107,20 @@ class TicketOrderAdmin(admin.ModelAdmin, ExportOrderExcelMixin):
                      'ticket__activity__activity_begin_date')
 
 
-admin.site.register(Bustype)
+# 雪票订单
+class LeaderItineraryAdmin(admin.ModelAdmin, ExportOrderExcelMixin):
+    list_display = ('id', 'leader', 'activity', 'create_time', 'bus_loc')
+    # readonly_fields = ("ordernumber", 'user', 'activity', 'need_rent',
+    #                  'bus_loc', 'create_time', 'is_paid')
+    # list_display_links = ['ordernumber']
+    actions = ['export_as_excel']
+
+    list_filter = ('activity__activity_begin_date',)
+    search_fields = ('user__name', 'activity__activity_template__name', 'bus_loc__loc__busboardloc',
+                     'activity__activity_begin_date')
+
+
 admin.site.register(Bus, BusAdmin)
 admin.site.register(Bus_boarding_time, Bus_boarding_timeAdmin)
 admin.site.register(TicketOrder, TicketOrderAdmin)
+admin.site.register(LeaderItinerary, LeaderItineraryAdmin)  # todo

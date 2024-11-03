@@ -200,6 +200,19 @@ class ActivityWxGroup(models.Model):
         verbose_name = "微信群二维码"
         verbose_name_plural = "微信群二维码"
 
+# 大巴类型
+class Bustype(models.Model):
+    activity = models.ForeignKey(verbose_name='活动', to=Activity, on_delete=models.PROTECT)
+    passenger_num = models.IntegerField(verbose_name='可承载人数', validators=[MinValueValidator(1),])
+    price = models.DecimalField(verbose_name='单价', null=False, blank=False, max_digits=7, decimal_places=2,
+                                validators=[MinValueValidator(1),])    
+
+    def __str__(self) -> str:
+        return '可承载'+str(self.passenger_num)+'人'
+    
+    class Meta:
+        verbose_name = "大巴车类型(只支持两种类型)"
+        verbose_name_plural = "大巴车类型(只支持两种类型)"
 
 # 雪票
 class Ticket(models.Model):

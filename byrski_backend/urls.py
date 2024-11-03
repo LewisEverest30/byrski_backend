@@ -18,9 +18,11 @@ from django.contrib import admin
 from django.urls import path
 from django.conf.urls.static import static
 
+
 from user.views import *
 from activity.views  import *
 from order.views  import *
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -41,7 +43,7 @@ urlpatterns = [
     path('python/get_itinerary_of_certain_order', get_itinerary_of_certain_order.as_view()),
     path('python/get_all_itinerary', get_all_itinerary.as_view()),
     path('python/get_detail_of_certain_itinerary', get_detail_of_certain_itinerary.as_view()),
-    path('python/get_available_boardingloc_of_certain_itinerary', get_available_boardingloc_of_certain_itinerary.as_view()),
+    # path('python/get_available_boardingloc_of_certain_itinerary', get_available_boardingloc_of_certain_itinerary.as_view()),
     path('python/try_refund_ticket_order', try_refund_ticket_order.as_view()),
     path('python/select_new_boardingloc', select_new_boardingloc.as_view()),
     path('python/set_go_boarded', set_go_boarded.as_view()),
@@ -55,6 +57,11 @@ urlpatterns = [
     path('python/cancel_ticket_order', cancel_ticket_order.as_view()),
     path('python/delete_ticket_order', delete_ticket_order.as_view()),
 
+    path('python/get_all_leader_itinerary', get_all_leader_itinerary.as_view()),
+    path('python/get_detail_of_leader_itinerary', get_detail_of_leader_itinerary.as_view()),
+    
+    path('python/get_itinerary_qrcode', get_itinerary_qrcode.as_view()),
+    path('verify_itinerary_qrcode', verify_itinerary_qrcode.as_view()),
     # path('python/get_bus_boarding_list', get_bus_boarding_passenger_list.as_view()),
 
     # path('get_busloc', get_busloc.as_view()),

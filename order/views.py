@@ -10,6 +10,7 @@ from user.models import User
 from user.auth import MyJWTAuthentication
 from .models import *
 from activity.utils import ACTIVITY_GUIDE
+from .qrverif import QRVerif, QR_VALID_PERIOD
 
 
 # 下单
@@ -221,47 +222,6 @@ class get_detail_of_certain_itinerary(APIView):
             return Response({'ret': 420301, 'data': None})
 
 
-# 获取可以替换的上车点
-class get_available_boardingloc_of_certain_itinerary(APIView):
-    authentication_classes = [MyJWTAuthentication, ]
-
-    def post(self,request,*args,**kwargs):
-        info = json.loads(request.body)
-        try:
-            userid = request.user['userid']
-            order_id = info['id']
-
-            ret_dic = {}  # key-上车点，value-大巴车
-            # 先查上车点
-            activity_id = TicketOrder.objects.get(Q(id=order_id) & ~Q(status=6)).ticket.activity.id
-            boardinglocs = Boardingloc.objects.filter(activity_id=activity_id)
-            for bl in boardinglocs:  # 对于所有的目前可用的上车点
-                # print(bl)
-                related_bus_ids = Bus_boarding_time.objects.filter(loc_id=bl.id).values_list('bus_id', flat=True).distinct()
-                # print(related_bus_ids)
-                related_bus = Bus.objects.filter(id__in=related_bus_ids)
-                availible_bus = []
-                for bus in related_bus:
-                    if (bus.carry_peoplenum is not None) and (bus.max_people is not None) and \
-                        (bus.max_people - bus.carry_peoplenum) > 0:
-                        bus_serializer = BusSerializer(instance=bus, many=False)
-
-                        # todo-f 加入上车点id，上车点上车时间
-                        this_bus_data = dict(bus_serializer.data)
-                        this_bus_data['boardingtime'] = Bus_boarding_time.objects.filter(loc_id=bl.id, bus_id=bus.id)[0].time.strftime('%H:%M')
-                        this_bus_data['boardingloc_id'] = Bus_boarding_time.objects.filter(loc_id=bl.id, bus_id=bus.id)[0].loc.id
-                        availible_bus.append(this_bus_data)
-                # print(availible_bus)
-
-                if len(availible_bus) > 0:
-                    ret_dic[str(bl.loc.busboardloc)] = availible_bus
-
-            return Response({'ret': 0, 'data': ret_dic})
-        except Exception as e:
-            print(repr(e))
-            return Response({'ret': 420401, 'data': None})
-
-
 # 尝试发起退款
 class try_refund_ticket_order(APIView):
     authentication_classes = [MyJWTAuthentication, ]
@@ -331,7 +291,6 @@ class select_new_boardingloc(APIView):
         try:
             order_id = info['order_id']
             boardingloc_id = info['boardingloc_id']
-            bus_id = info['bus_id']
 
             order = TicketOrder.objects.get(Q(id=order_id) & ~Q(status=6))
             # 对于已发起退款或已退款的，修改上车点无效
@@ -351,30 +310,12 @@ class select_new_boardingloc(APIView):
             elif order.ticket.activity.status == 2:  # 锁票
                 return Response({'ret': 420603, 'errmsg': '活动已经进入锁票阶段，无法操作'})
 
-
-            # 判断所选大巴是否有空位
-            with transaction.atomic():
-                select_bus = Bus.objects.select_for_update().filter(id=bus_id)
-                # 检查剩余名额
-                if select_bus[0].max_people - select_bus[0].carry_peoplenum <= 0:
-                    return Response({'ret': 420609, 'errmsg': '该车已经没有空位'})
-                else:
-                    # 设置bus
-                    order.bus = select_bus[0]  # 订单绑定
-                    select_bus[0].carry_peoplenum += 1  # 车上人数+1
-                    select_bus[0].save()
-                    # 设置boardingloc
-                    select_boardingloc = Boardingloc.objects.select_for_update().filter(id=boardingloc_id)
-                    order.bus_loc = select_boardingloc[0]  # 订单绑定
-                    select_boardingloc.update(choice_peoplenum=F('choice_peoplenum')+1)  # 上车点人数+
-                    # 设置上车时间，该车该点上车人数
-                    select_bus_loc_time = Bus_boarding_time.objects.select_for_update().filter(bus_id=select_bus[0].id, loc_id=boardingloc_id)
-                    order.bus_time = select_bus_loc_time[0]  # 订单绑定
-                    select_bus_loc_time.update(boarding_peoplenum=F('boarding_peoplenum')+1)  # 该车经过该点上车人数+1
-                    
-                    # 将订单锁定
-                    order.status = 3
-                    order.save()
+            try:
+                bus_loc = Boardingloc.objects.get(id=boardingloc_id)
+            except:
+                return Response({'ret': 420608, 'errmsg': '上车点不合法'})
+            order.bus_loc = bus_loc
+            order.save()
 
             return Response({'ret': 0, 'errmsg': None})
 
@@ -582,6 +523,7 @@ class get_detail_of_certain_ticket_order(APIView):
         info = json.loads(request.body)
 
         try:
+            TicketOrder.cancel_paid_timeout_orders()
             order_id = info['order_id']
             order = TicketOrder.objects.get(Q(id=order_id) & ~Q(status=6))
             
@@ -599,7 +541,6 @@ class cancel_ticket_order(APIView):
 
     def post(self,request,*args,**kwargs):
         userid = request.user['userid']
-
         info = json.loads(request.body)
 
         try:
@@ -618,7 +559,9 @@ class cancel_ticket_order(APIView):
             elif order.status == 5:
                 return Response({'ret': 421405, 'errmsg': '该订单已退款'})
 
-            # 活动状态
+            # 活动状态(其实不会走这个分支，在活动状态)
+            if order.ticket.activity.status == 1:  # 截止报名
+                return Response({'ret': 421402, 'errmsg': '活动已经进入截止报名阶段，无法取消'})
             if order.ticket.activity.status == 2:  # 锁票
                 return Response({'ret': 421403, 'errmsg': '活动已经进入锁票阶段，无法取消'})
 
@@ -662,7 +605,7 @@ class delete_ticket_order(APIView):
             elif (order.status == 0) or (order.status == 5) or (order.return_boarded == True):
                 # 可删除的情况
                 order.status = 6
-                order.save()                
+                order.save()
                 return Response({'ret': 0, 'errmsg': None})
             else:
                  return Response({'ret': 421503, 'errmsg': '该订单不能被删除'})
@@ -672,6 +615,50 @@ class delete_ticket_order(APIView):
             return Response({'ret': 421501, 'errmsg': '其他错误'})
 
 
+
+# ================================二维码验证相关================================
+class get_itinerary_qrcode(APIView):
+    authentication_classes = [MyJWTAuthentication, ]
+    def post(self,request,*args,**kwargs):
+        userid = request.user['userid']
+        # userid = request.query_params['userid']   #本地测试无验证使用
+        info = json.loads(request.body)
+        try:
+            order_id = info['order_id']
+            order = TicketOrder.objects.get(Q(id=order_id) & ~Q(status=6))
+        except:
+            return Response({'ret': 421901, 'errmsg':"行程不存在",'data':None})
+
+        if order.ticket_checked == True:
+            return Response({'ret': 421902, 'errmsg':"已验票",'data':None})
+        qr_encode = None
+        orderNumber = order.ordernumber
+        qr_encode = QRVerif.encrypt_info(order_id=orderNumber)
+        if qr_encode:
+            return Response({'ret': 0, 'data':qr_encode})
+        else:
+            return Response({'ret': 421903, 'errmsg': "加密错误",'data':None})
+
+
+class verify_itinerary_qrcode(APIView):
+    authentication_classes = [MyJWTAuthentication, ]
+    def post(self,request,*args,**kwargs):
+        # userid = request.user['userid']    # 领队ID
+        info = json.loads(request.body)
+        try:
+            qr_code = info['qr_code']
+            timestamp, ordernumber, cur_time = QRVerif.decrypt_info(qr_code)
+            if int(cur_time) - int(timestamp) < QR_VALID_PERIOD:
+                orders = TicketOrder.objects.filter(Q(ordernumber=ordernumber) & Q(ticket_checked=0))
+                if len(orders):
+                    TicketOrder.objects.filter(Q(ordernumber=ordernumber)).update(ticket_checked=1)
+                    return Response({'ret': 0, 'data':'Success'})
+                else:
+                    return Response({'ret': 422001,'errmsg':"已验票",'data':None})
+            else:
+                return Response({'ret': 422002,'errmsg':"二维码超时",'data':None})
+        except:
+            return Response({'ret': 422003,'errmsg':"加密密钥错误",'data':None})
 
 
 # ================================领队相关================================
@@ -685,15 +672,132 @@ class get_all_leader_itinerary(APIView):
             current_date = timezone.now().date()
             orders = LeaderItinerary.objects.filter(Q(user_id=userid) & 
                                             Q(ticket__activity__activity_end_date__gte=current_date))  # 不要已结束的行程
-            serializer = OrderSerializerItinerary1(instance=orders, many=True)
+            serializer = LeaderItinerarySerializer1(instance=orders, many=True)
             return Response({'ret': 0, 'data': list(serializer.data)})
         except Exception as e:
             print(repr(e))
-            return Response({'ret': 420201, 'data': None})
+            return Response({'ret': 422101, 'data': None})
+
+
+# 获取领队的行程详情
+class get_detail_of_leader_itinerary(APIView):
+    authentication_classes = [MyJWTAuthentication, ]
+
+    def get(self,request,*args,**kwargs):
+        try:
+            userid = request.user['userid']
+            current_date = timezone.now().date()
+            leaderitinerary = LeaderItinerary.objects.filter(Q(user_id=userid) & 
+                                            Q(ticket__activity__activity_end_date__gte=current_date))  # 不要已结束的行程
+            serializer = LeaderItinerarySerializer2(instance=leaderitinerary, many=True)
+            return Response({'ret': 0, 'data': list(serializer.data)})
+        except Exception as e:
+            print(repr(e))
+            return Response({'ret': 422201, 'data': None})
 
 
 # 获取上车情况
-# class get_bus_boarding_passenger_list(APIView):
+class get_go_bus_boarding_passenger_list(APIView):
+    authentication_classes = [MyJWTAuthentication, ]
+
+    def post(self,request,*args,**kwargs):
+        userid = request.user['userid']
+
+        info = json.loads(request.body)
+
+        try:
+            leader_itinerary_id = info['leader_itinerary_id']
+            go_or_return = info['go_or_return']  #  0 go 1 return
+            boarded_type = info['boarded_type']  #  0 全部 1 上车 2 未上车
+
+            try:
+                leader_itinerary = LeaderItinerary.objects.get(Q(id=leader_itinerary_id))
+            except:
+                return Response({'ret': 422302, 'errmsg': '没有找到对应的领队行程'})
+
+            if go_or_return == 0:   # 去程
+                if boarded_type == 0:
+                    orders = TicketOrder.objects.get(Q(bus_id=leader_itinerary.bus.id))
+                elif boarded_type == 1:
+                    orders = TicketOrder.objects.get(Q(bus_id=leader_itinerary.bus.id) & Q(go_boarded=True))
+                elif boarded_type == 2:
+                    orders = TicketOrder.objects.get(Q(bus_id=leader_itinerary.bus.id) & Q(go_boarded=False))
+                else:
+                    return Response({'ret': 422303, 'errmsg': '错误的boarded_type'})
+            elif go_or_return == 1:   # 返程
+                if boarded_type == 0:
+                    orders = TicketOrder.objects.get(Q(bus_id=leader_itinerary.bus.id))
+                elif boarded_type == 1:
+                    orders = TicketOrder.objects.get(Q(bus_id=leader_itinerary.bus.id) & Q(return_boarded=True))
+                elif boarded_type == 2:
+                    orders = TicketOrder.objects.get(Q(bus_id=leader_itinerary.bus.id) & Q(return_boarded=False))
+                else:
+                    return Response({'ret': 422303, 'errmsg': '错误的boarded_type'})
+            else:
+                return Response({'ret': 422304, 'errmsg': '错误的go_or_return'})
+
+            ret_data = []
+            for order in orders:
+                this_order_dict = {
+                    'passenger_name': order.user.name,
+                    'gender': order.user.gender,
+                    'phone': order.user.phone,
+                    'boarding_loc': order.bus_loc.loc.busboardloc,
+                    'boarded': order.go_boarded if go_or_return == 0 else order.return_boarded
+                }
+                ret_data.append(this_order_dict)
+            return Response({'ret': 0, 'data': ret_data})
+
+        except Exception as e:
+            print(repr(e))
+            return Response({'ret': 422301, 'errmsg': '其他错误'})
+
+
+# ========================================= Depreceted ===========================================
+
+# 获取可以替换的上车点
+# class get_available_boardingloc_of_certain_itinerary(APIView):
+#     authentication_classes = [MyJWTAuthentication, ]
+
+#     def post(self,request,*args,**kwargs):
+#         info = json.loads(request.body)
+#         try:
+#             userid = request.user['userid']
+#             order_id = info['id']
+
+#             ret_dic = {}  # key-上车点，value-大巴车
+#             # 先查上车点
+#             activity_id = TicketOrder.objects.get(Q(id=order_id) & ~Q(status=6)).ticket.activity.id
+#             boardinglocs = Boardingloc.objects.filter(activity_id=activity_id)
+#             for bl in boardinglocs:  # 对于所有的目前可用的上车点
+#                 # print(bl)
+#                 related_bus_ids = Bus_boarding_time.objects.filter(loc_id=bl.id).values_list('bus_id', flat=True).distinct()
+#                 # print(related_bus_ids)
+#                 related_bus = Bus.objects.filter(id__in=related_bus_ids)
+#                 availible_bus = []
+#                 for bus in related_bus:
+#                     if (bus.carry_peoplenum is not None) and (bus.max_people is not None) and \
+#                         (bus.max_people - bus.carry_peoplenum) > 0:
+#                         bus_serializer = BusSerializer(instance=bus, many=False)
+
+#                         # todo-f 加入上车点id，上车点上车时间
+#                         this_bus_data = dict(bus_serializer.data)
+#                         this_bus_data['boardingtime'] = Bus_boarding_time.objects.filter(loc_id=bl.id, bus_id=bus.id)[0].time.strftime('%H:%M')
+#                         this_bus_data['boardingloc_id'] = Bus_boarding_time.objects.filter(loc_id=bl.id, bus_id=bus.id)[0].loc.id
+#                         availible_bus.append(this_bus_data)
+#                 # print(availible_bus)
+
+#                 if len(availible_bus) > 0:
+#                     ret_dic[str(bl.loc.busboardloc)] = availible_bus
+
+#             return Response({'ret': 0, 'data': ret_dic})
+#         except Exception as e:
+#             print(repr(e))
+#             return Response({'ret': 420401, 'data': None})
+        
+
+# 选择替换的上车点
+# class select_new_boardingloc(APIView):
 #     authentication_classes = [MyJWTAuthentication, ]
 
 #     def post(self,request,*args,**kwargs):
@@ -702,21 +806,55 @@ class get_all_leader_itinerary(APIView):
 #         info = json.loads(request.body)
 
 #         try:
-#             activity_id = info['activity_id']
+#             order_id = info['order_id']
+#             boardingloc_id = info['boardingloc_id']
+#             bus_id = info['bus_id']
 
-#             order = TicketOrder.objects.get(Q(id=order_id))
-#             # 订单状态
-#             # 已取消，已退款和已完成的可以删除
-#             if order.status == 6:
-#                 return Response({'ret': 421502, 'errmsg': '该订单已被删除'})
-#             elif (order.status == 0) or (order.status == 5) or (order.return_boarded == True):
-#                 # 可删除的情况
-#                 order.status = 6
-#                 order.save()                
-#                 return Response({'ret': 0, 'errmsg': None})
-#             else:
-#                  return Response({'ret': 421503, 'errmsg': '该订单不能被删除'})
+#             order = TicketOrder.objects.get(Q(id=order_id) & ~Q(status=6))
+#             # 对于已发起退款或已退款的，修改上车点无效
+#             if order.status == 0:
+#                 return Response({'ret': 420606, 'errmsg': '该订单已取消'})
+#             elif order.status == 3:
+#                 return Response({'ret': 420607, 'errmsg': '该订单已锁定'})
+#             elif order.status == 4:
+#                 return Response({'ret': 420604, 'errmsg': '该订单正在退款中'})
+#             elif order.status == 5:
+#                 return Response({'ret': 420605, 'errmsg': '该订单已退款'})
+
+#             # 判断可报名状态
+#             if order.ticket.activity.status == 1:  # 截止报名
+#                 if order.bus_loc is not None:  # 原上车点可用
+#                     return Response({'ret': 420602, 'errmsg': '活动截止报名且原上车点可用，不允许更换'})
+#             elif order.ticket.activity.status == 2:  # 锁票
+#                 return Response({'ret': 420603, 'errmsg': '活动已经进入锁票阶段，无法操作'})
+
+
+#             # 判断所选大巴是否有空位
+#             with transaction.atomic():
+#                 select_bus = Bus.objects.select_for_update().filter(id=bus_id)
+#                 # 检查剩余名额
+#                 if select_bus[0].max_people - select_bus[0].carry_peoplenum <= 0:
+#                     return Response({'ret': 420609, 'errmsg': '该车已经没有空位'})
+#                 else:
+#                     # 设置bus
+#                     order.bus = select_bus[0]  # 订单绑定
+#                     select_bus[0].carry_peoplenum += 1  # 车上人数+1
+#                     select_bus[0].save()
+#                     # 设置boardingloc
+#                     select_boardingloc = Boardingloc.objects.select_for_update().filter(id=boardingloc_id)
+#                     order.bus_loc = select_boardingloc[0]  # 订单绑定
+#                     select_boardingloc.update(choice_peoplenum=F('choice_peoplenum')+1)  # 上车点人数+
+#                     # 设置上车时间，该车该点上车人数
+#                     select_bus_loc_time = Bus_boarding_time.objects.select_for_update().filter(bus_id=select_bus[0].id, loc_id=boardingloc_id)
+#                     order.bus_time = select_bus_loc_time[0]  # 订单绑定
+#                     select_bus_loc_time.update(boarding_peoplenum=F('boarding_peoplenum')+1)  # 该车经过该点上车人数+1
+                    
+#                     # 将订单锁定
+#                     order.status = 3
+#                     order.save()
+
+#             return Response({'ret': 0, 'errmsg': None})
 
 #         except Exception as e:
 #             print(repr(e))
-#             return Response({'ret': 421501, 'errmsg': '其他错误'})
+#             return Response({'ret': 420601, 'errmsg': '其他错误'})

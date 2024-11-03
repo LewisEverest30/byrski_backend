@@ -17,16 +17,7 @@ USER_POINTS_INCREASE_DELTA = 0
 # =======================================================================================
 # =====================================数据库表=============================================
 
-# 大巴类型
-class Bustype(models.Model):
-    passenger_num = models.IntegerField(verbose_name='可承载人数')
 
-    def __str__(self) -> str:
-        return '可承载'+str(self.passenger_num)+'人'
-    
-    class Meta:
-        verbose_name = "大巴车类型(只支持两种类型)"
-        verbose_name_plural = "大巴车类型(只支持两种类型)"
 
 
 # ========分车相关===========
@@ -164,43 +155,12 @@ class LeaderItinerary(models.Model):
     # status = models.IntegerField(verbose_name='行程状态', null=False, default=1, choices=Status_choices.choices)
 
     def __str__(self) -> str:
-        return f'{self.leader.name}的{self.activity.name}行程'
+        return f'{self.leader.user.name}的{self.activity.name}行程'
     
     class Meta:
         verbose_name = "领队行程"
         verbose_name_plural = "领队行程"
 
-    @classmethod
-    def cancel_paid_timeout_orders(cls):
-        # 获取当前时间
-        now = timezone.now()
-        # 计算20分钟前的时间
-        threshold_time = now - timedelta(minutes=20)
-        # 所有 create_time 小于 threshold_time 的记录，
-        # 即20分钟前创建且未付款的订单，自动取消
-        with transaction.atomic():
-            orders = cls.objects.select_for_update().filter(status=1, create_time__lt=threshold_time)
-            orders.update(status=0)
-
-            # todo-f 移除订单有效性时，有一套需要联动的数据
-            for order in orders:
-                # 上车点人数-1(未截止时退票需要，已截止后上车点有效不能退/无效不需要)
-                if order.bus_loc is not None:
-                    Boardingloc.objects.filter(id=order.bus_loc.id).update(choice_peoplenum=F('choice_peoplenum')-1)
-
-                # 活动参与人数-1
-                Activity.objects.filter(id=order.ticket.activity.id).update(current_participant=F('current_participant')-1)
-                # 票销量-1
-                Ticket.objects.filter(id=order.ticket.id).update(sales=F('sales')-1)
-                # 用户积分-K
-                User.objects.filter(id=order.user.id).update(points=F('points')-USER_POINTS_INCREASE_DELTA)
-
-    @classmethod
-    def set_orders_finished(cls):
-        # todo-f 当前日期超过活动最后日期的，自动设置为已完成状态
-        with transaction.atomic():
-            today = timezone.now().date()
-            cls.objects.select_for_update().filter(ticket__activity__activity_end_date__lt=today).update(return_boarded=True)
 
 
 # ========================================================================================
@@ -465,7 +425,7 @@ class OrderSerializer3(serializers.ModelSerializer):
         return begin_date
 
     def get_cover(self, obj):
-        return settings.MEDIA_URL + str(obj.activity.activity_template.ski_resort.cover)
+        return settings.MEDIA_URL + str(obj.ticket.activity.activity_template.ski_resort.cover)
 
     class Meta:
         model = TicketOrder
@@ -514,7 +474,7 @@ class OrderSerializer4(serializers.ModelSerializer):
         return begin_date
 
     def get_cover(self, obj):
-        return settings.MEDIA_URL + str(obj.activity.activity_template.ski_resort.cover)
+        return settings.MEDIA_URL + str(obj.ticket.activity.activity_template.ski_resort.cover)
 
     class Meta:
         model = TicketOrder
@@ -543,31 +503,34 @@ class LeaderItinerarySerializer1(serializers.ModelSerializer):
         return begin_date
 
     class Meta:
-        model = TicketOrder
+        model = LeaderItinerary
         fields = ['id', 'activity_name', 'skiresort_location', 'begin_date', 'to_area']
 
 
 # 用于领队行程详情
-class OrderSerializerItinerary2(serializers.ModelSerializer):
+class LeaderItinerarySerializer2(serializers.ModelSerializer):
     activity_name = serializers.CharField(source='activity.activity_template.name')
-    ski_resort_location = serializers.CharField(source='ticket.activity.activity_template.ski_resort.location')
+    ski_resort_location = serializers.CharField(source='activity.activity_template.ski_resort.location')
     begin_date = serializers.SerializerMethodField()
-    to_area = serializers.CharField(source='ticket.activity.activity_template.ski_resort.area.area_name')
+    to_area = serializers.CharField(source='activity.activity_template.ski_resort.area.area_name')
 
     boardingtime = serializers.SerializerMethodField()
     arrivaltime = serializers.SerializerMethodField()
     boardingloc = serializers.SerializerMethodField()
-    arrivalloc = serializers.CharField(source='ticket.activity.activity_template.ski_resort.name')
+    arrivalloc = serializers.CharField(source='activity.activity_template.ski_resort.name')
     busnumber = serializers.SerializerMethodField()
     return_time = serializers.SerializerMethodField()
-    return_loc = serializers.CharField(source='ticket.activity.activity_return_loc')
+    return_loc = serializers.CharField(source='activity.activity_return_loc')
 
-    schedule = serializers.CharField(source='ticket.activity.activity_template.schedule')
-    attention = serializers.CharField(source='ticket.activity.activity_template.attention')
+    schedule = serializers.CharField(source='activity.activity_template.schedule')
+    attention = serializers.CharField(source='activity.activity_template.attention')
 
     itinerary_status = serializers.SerializerMethodField()
 
-    boarding_info = serializers.SerializerMethodField()
+    bus_stop = serializers.SerializerMethodField()
+    
+    # go_boarding_info = serializers.SerializerMethodField()
+    # return_boarding_info = serializers.SerializerMethodField()
 
 
     def get_begin_date(self, obj):
@@ -601,63 +564,50 @@ class OrderSerializerItinerary2(serializers.ModelSerializer):
         else:
             return obj.activity.activity_return_time.strftime('%H:%M')
     def get_itinerary_status(self, obj):
-        # 0 -- 上车点有效且未到行程第一天，不显示上车按钮
-        # 1 -- 报名截止，且上车点无效，需要调用获取替换的上车点
-        # 2 -- 活动当天，显示上车按钮
-        # 3 -- 已上车未启动活动指引，显示活动指引启动按钮
-        # 4 -- 活动指引已开始，显示活动指引各个步骤
-        # 5 -- 已完成/跳过活动指引,，显示返程信息，直接显示返程上车按钮
-        # 6 -- 返程已上车，返程上车按钮变灰色
-        # 7 -- 已上车后且未验票，验票页面
-
-        # 活动第一天前
-            # 上车点有效 0
-            # 上车点无效 1
-
-        # 活动第一天到最后一天
-            # 去程未上车 2
-            # 去程已上车，且返程上车了 6
-            # 去程上车了，且返程未上车，且未验票，7
-            # 去程已上车，返程未上车，未启动教程 3
-            # 去程已上车，返程未上车，已启动活动指引 4
-            # 去程已上车，返程未上车，已完成/跳过活动指引 5
+        # 0 -- 未到行程第一天。不显示上车情况
+        # 1 -- 行程第一天，且有去程未上车的人。显示去程上车情况，以及验票按钮（万一有人没来，人不齐也能验票）
+        # 2 -- 行程第一天，去程全部上车。不显示去程上车情况，只显示验票按钮
+        # 3 -- 返程集合时间一小时内，开始显示返程上车情况
 
         current_date = timezone.now().date()
-        # current_time = timezone.now().time()
-        one_hour_later = (timezone.now() + timedelta(minutes=30)).time()
-        if obj.ticket.activity.activity_begin_date > current_date:              # 出发日期前
-            if obj.bus_loc is None:  # 上车点无效了
+        one_hour_later = (timezone.now() + timedelta(minutes=60)).time()
+        if obj.activity.activity_begin_date > current_date:              # 出发日期前
+            return 0
+        elif obj.activity.activity_end_date == current_date and \
+                one_hour_later > obj.activity.activity_return_time:      # 返程时间半小时内
+            return 3
+        else:
+            boarded_passenger_num = TicketOrder.objects.filter(bus_id=obj.bus.id, go_boarded=True).count()
+            if boarded_passenger_num < obj.bus.carry_peoplenum:          # 去程未全部上车
                 return 1
-            else:                    # 上车点有效
-                return 0
-        # elif obj.ticket.activity.activity_end_date == current_date and \
-        #         one_hour_later > obj.ticket.activity.activity_return_time:      # 返程时间半小时内
-        #     return 6
-        else:                                                                   # 其他时间内
-            if obj.go_boarded == False:  # 去程还未上车
+            else:
                 return 2
-            else:                        # 上车了
-                if obj.return_boarded == True:  # 返程已上车
-                    return 6
-                elif obj.ticket_checked == False:  # 去程上车了，且返程未上车，且未验票
-                    return 7
-                elif obj.completed_steps == 0:   # 去程上车了，且返程未上车，且已经完成验票，未启动活动指引
-                    return 3
-                elif obj.completed_steps == len(ACTIVITY_GUIDE):  # 去程上车了，且返程未上车，且已经完成验票，已完成/跳过活动指引
-                    return 5
-                else:  # 去程上车了，且返程未上车，且已经完成验票，且处在活动指引中
-                    return 4
 
-    def get_boarding_info():
-        # ret_dict = {
-        #     "total_passenger": ,
-        #     "boarded_passenger": ,
-        #     "unboarded_passenger": ,
-        # }
-        return
+
+    # def get_go_boarding_info(self, obj):
+    #     boarded_passenger_num = TicketOrder.objects.filter(bus_id=obj.bus.id, go_boarded=True).count()
+    #     ret_dict = {
+    #         "total_passenger": obj.bus.carry_peoplenum,
+    #         "boarded_passenger": boarded_passenger_num,
+    #         "unboarded_passenger": obj.bus.carry_peoplenum - boarded_passenger_num,
+    #     }
+    #     return ret_dict
+
+    # def get_return_boarding_info(self, obj):
+    #     boarded_passenger_num = TicketOrder.objects.filter(bus_id=obj.bus.id, return_boarded=True).count()
+    #     ret_dict = {
+    #         "total_passenger": obj.bus.carry_peoplenum,
+    #         "boarded_passenger": boarded_passenger_num,
+    #         "unboarded_passenger": obj.bus.carry_peoplenum - boarded_passenger_num,
+    #     }
+    #     return ret_dict
+
+    def get_bus_stop(self, obj):
+        Bus_boarding_time.objects.filter()
+
 
     class Meta:
-        model = TicketOrder
+        model = LeaderItinerary
         fields = ['activity_name', 'ski_resort_location', 'begin_date', 'to_area', 
                   'busnumber', 'boardingtime', 'arrivaltime','boardingloc', 'arrivalloc', 'return_time', 'return_loc',
                   'schedule', 'attention',

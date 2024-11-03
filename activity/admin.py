@@ -149,6 +149,22 @@ class ActivityWxGroupInline(admin.TabularInline):
             return mark_safe(f'<img src="{obj.qrcode.url}" height="80" />')
         else:
             return '-'
+class BustypeInlineFormSet(BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        valid_form_num = 0
+        for form in self.forms:
+            if form.cleaned_data and not form.cleaned_data.get('DELETE', False):
+                valid_form_num += 1
+        if valid_form_num != 2:
+            raise ValidationError('每个活动有2个类型的大巴车。')
+class BustypeInline(admin.TabularInline):
+    formset = BustypeInlineFormSet
+    fields = ('passenger_num','price',)
+    model = Bustype
+    extra = 0  # 默认显示 0 个 
 class AreaBoardingLowerLimitInline(admin.TabularInline):
     fields = ('area','lower_limit')
     model = AreaBoardingLowerLimit
@@ -162,7 +178,8 @@ class ActivityAdmin(admin.ModelAdmin, ExportExcelMixin):
     list_filter = ("activity_template", "status")
 
     readonly_fields = ('current_participant', )
-    inlines = [TicketInline, ActivityWxGroupInline, BoardinglocInline, AreaBoardingLowerLimitInline]
+    inlines = [TicketInline, ActivityWxGroupInline, BoardinglocInline, AreaBoardingLowerLimitInline,
+               BustypeInline,]
 
 
 # 上车点
@@ -187,6 +204,7 @@ admin.site.register(Skiresort, SkiresortAdmin)
 admin.site.register(ActivityTemplate, ActivityTemplateAdmin)
 admin.site.register(Activity, ActivityAdmin)
 admin.site.register(Boardingloc, BoardinglocAdmin)
+# admin.site.register(Bustype)
 
 
 
