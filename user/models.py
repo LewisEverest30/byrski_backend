@@ -89,7 +89,7 @@ class User(models.Model):
 class Leader(models.Model):
     user = models.ForeignKey(verbose_name='用户', to=User, on_delete=models.CASCADE)
     intro = models.TextField(verbose_name='领队介绍', null=True, blank=True)
-    phone = models.CharField(verbose_name='手机号', max_length=11, null=True, blank=True)
+    phone = models.CharField(verbose_name='手机号', max_length=11, null=False, blank=False)  # 领队手机号 不能为空！！！
     profile = models.ImageField(verbose_name='照片', null=True, blank=True,
                             upload_to='user/profile/')
     leadtimes = models.IntegerField(verbose_name='参与活动次数', default=0)

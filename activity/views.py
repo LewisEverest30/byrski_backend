@@ -165,3 +165,12 @@ class get_boardingloc(APIView):
             #             }
             #         )
 
+
+# 获取合作学校的列表
+class get_parner_school(APIView):
+    authentication_classes = [MyJWTAuthentication, ]
+
+    def get(self,request,*args,**kwargs):
+        all_school = School.objects.all()
+        return Response({'ret': 0, 'data': list(all_school.values())})
+

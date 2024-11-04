@@ -98,6 +98,7 @@ class ActivityTemplate(models.Model):
     schedule = models.TextField(verbose_name='行程安排(详细说明)', null=True, blank=False)
     attention = models.TextField(verbose_name='注意事项', null=True, blank=True)
     notes = models.TextField(verbose_name='备注', null=True, blank=True)
+    leader_notice = models.TextField(verbose_name='领队须知', null=True, blank=False)
 
     schedule_lite = models.CharField(verbose_name='行程安排文字简述 (该字段暂时弃用)', max_length=300, null=True, blank=True,
                                 validators=[Validator_schedule, ],
@@ -108,7 +109,7 @@ class ActivityTemplate(models.Model):
 
     def __str__(self) -> str:
         # return str(self.id)+'_'+self.ski_resort.name
-        return f'{self.ski_resort.name}-{self.duration_days}天-ID#{self.id}'
+        return f'{self.name}-{self.ski_resort.name}-{self.duration_days}天-ID#{self.id}'
 
     class Meta:
         verbose_name = "活动模板"
@@ -133,7 +134,7 @@ class Activity(models.Model):
     lock_ddl_date = models.DateField(verbose_name='锁票日期(当天23:59锁票)', null=False, blank=False)
     status = models.IntegerField(verbose_name='活动状态', choices=Status_choices.choices, default=0)
 
-    target_participant = models.IntegerField(verbose_name='目标报名人数', null=False, blank=False)
+    target_participant = models.IntegerField(verbose_name='目标报名人数', null=True, blank=True)
     current_participant = models.IntegerField(verbose_name='当前报名人数', default=0)
 
     create_time = models.DateTimeField(verbose_name='创建时间', auto_now_add=True) 
