@@ -1,6 +1,7 @@
 from django.contrib import admin
 from openpyxl import Workbook
 from django.http import HttpResponse
+from django.forms import BaseInlineFormSet, ValidationError
 
 from .models import *
 
@@ -68,21 +69,50 @@ class Bus_boarding_timeInline(admin.TabularInline):
     fields = ('bus', 'loc', 'boarding_peoplenum', 'time')
     model = Bus_boarding_time
     extra = 0  # 默认显示 0 个 
-    readonly_fields = ('bus', 'loc', 'boarding_peoplenum',)
+    # todo 恢复
+    # readonly_fields = ('bus', 'loc', 'boarding_peoplenum',)
+class LeaderItineraryInlineFormSet(BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        # 如果没有至少一个ticket，抛出错误
+        valid_form_num = 0
+        for form in self.forms:
+            if form.cleaned_data and not form.cleaned_data.get('DELETE', False):
+                valid_form_num += 1
+        if valid_form_num != 1:
+            raise ValidationError('每个大巴车必须有一个领队')
 class LeaderItineraryInline(admin.TabularInline):
-    fields = ('bus', 'leader', )
+    formset = LeaderItineraryInlineFormSet
+    fields = ('bus', 'leader', 'bus_loc')
     model = LeaderItinerary
     extra = 0  # 默认显示 0 个 
-    readonly_fields = ('bus', )
+    readonly_fields = ('bus',)
+    # def save_formset(self, request, form, formset, change):
+    #     instances = formset.save(commit=False)
+    #     for instance in instances:
+    #         if instance.bus_loc_id is None:  # 只设置新添加的实例
+    #             instance.bus_loc_id = 1
+    #         instance.save()
+    #     formset.save_m2m()
 class BusAdmin(admin.ModelAdmin, ExportExcelMixin):
     list_display = ('id', 'activity', 'car_number', 'driver_phone', 'carry_peoplenum', 'max_people', 'route', 'leader')
-    readonly_fields = ('activity', 'max_people')
+    # todo 恢复
+    # readonly_fields = ('activity', 'max_people')
     # readonly_fields = ('max_people', )
     list_display_links = ['activity']
     list_filter = ("activity", )
     search_fields = ('activity__activity_template', 'car_number', 'driver_phone')
     actions = ['export_as_excel']
     inlines = [Bus_boarding_timeInline, LeaderItineraryInline,]
+    # def save_model(self, request, obj, form, change):
+    #     super().save_model(request, obj, form, change)
+    #     # 获取所有新添加的LeaderItinerary实例并设置bus_loc_id为1
+    #     for itinerary in obj.leaderitinerary_set.all():
+    #         if itinerary.bus_loc_id is None:  # 只设置新添加的实例
+    #             itinerary.bus_loc_id = 1
+    #             itinerary.save()
 
 
 # 每次活动的大巴车-所经站点-时间-没站搭载人数
@@ -109,13 +139,13 @@ class TicketOrderAdmin(admin.ModelAdmin, ExportOrderExcelMixin):
 
 # 雪票订单
 class LeaderItineraryAdmin(admin.ModelAdmin, ExportOrderExcelMixin):
-    list_display = ('id', 'leader', 'activity', 'create_time', 'bus_loc')
+    list_display = ('id', 'leader', 'bus', 'create_time', 'bus_loc')
     # readonly_fields = ("ordernumber", 'user', 'activity', 'need_rent',
     #                  'bus_loc', 'create_time', 'is_paid')
     # list_display_links = ['ordernumber']
     actions = ['export_as_excel']
 
-    list_filter = ('activity__activity_begin_date',)
+    list_filter = ('bus__activity__activity_begin_date',)
     search_fields = ('user__name', 'activity__activity_template__name', 'bus_loc__loc__busboardloc',
                      'activity__activity_begin_date')
 

@@ -19,7 +19,6 @@ USER_POINTS_INCREASE_DELTA = 0
 
 
 
-
 # ========分车相关===========
 
 # 大巴
@@ -38,7 +37,7 @@ class Bus(models.Model):
     leader = models.ForeignKey(verbose_name='领队', to=Leader, on_delete=models.PROTECT, null=True, blank=True)
 
     def __str__(self) -> str:
-        return str(self.car_number) + '(ID#' + str(self.id) + '), 乘客数: ' + str(self.carry_peoplenum) + ')'
+        return f'{self.activity} -- {self.car_number} (#{self.id})'
     
     class Meta:
         verbose_name = "大巴车"
@@ -147,7 +146,7 @@ class LeaderItinerary(models.Model):
     #     paid = 2, _('已完成')
 
     leader = models.ForeignKey(verbose_name='领队', to=Leader, on_delete=models.CASCADE)
-    activity = models.ForeignKey(verbose_name='活动', to=Activity, on_delete=models.PROTECT)
+    # activity = models.ForeignKey(verbose_name='活动', to=Activity, on_delete=models.PROTECT)  # bus中已经有activity
     bus = models.ForeignKey(verbose_name='大巴', to=Bus, null=False, on_delete=models.CASCADE)
     bus_loc = models.ForeignKey(verbose_name='上车点', to=Boardingloc, null=False, on_delete=models.CASCADE)
 
@@ -155,7 +154,7 @@ class LeaderItinerary(models.Model):
     # status = models.IntegerField(verbose_name='行程状态', null=False, default=1, choices=Status_choices.choices)
 
     def __str__(self) -> str:
-        return f'{self.leader.user.name}的{self.activity.name}行程'
+        return f'{self.leader.user.name}的{self.bus.activity.activity_template.name}行程'
     
     class Meta:
         verbose_name = "领队行程"
@@ -333,8 +332,8 @@ class OrderSerializerItinerary2(serializers.ModelSerializer):
     def get_itinerary_status(self, obj):
         # 0 -- 上车点有效且未到行程第一天，不显示上车按钮
         # 1 -- 报名截止，且上车点无效，需要调用获取替换的上车点
-        # 2 -- 活动当天，显示上车按钮
-        # 3 -- 已上车未启动活动指引，显示活动指引启动按钮
+        # 2 -- 活动当天，显示上车按钮和验票按钮
+        # 3 -- 已上车且已完成验票，未启动活动指引，显示活动指引启动按钮
         # 4 -- 活动指引已开始，显示活动指引各个步骤
         # 5 -- 已完成/跳过活动指引,，显示返程信息，直接显示返程上车按钮
         # 6 -- 返程已上车，返程上车按钮变灰色
@@ -491,13 +490,13 @@ class OrderSerializer4(serializers.ModelSerializer):
 
 # 用于行程列表
 class LeaderItinerarySerializer1(serializers.ModelSerializer):
-    activity_name = serializers.CharField(source='activity.activity_template.name')
-    skiresort_location = serializers.CharField(source='activity.activity_template.ski_resort.location')
+    activity_name = serializers.CharField(source='bus.activity.activity_template.name')
+    skiresort_location = serializers.CharField(source='bus.activity.activity_template.ski_resort.location')
     begin_date = serializers.SerializerMethodField()
-    to_area = serializers.CharField(source='activity.activity_template.ski_resort.area.area_name')
+    to_area = serializers.CharField(source='bus.activity.activity_template.ski_resort.area.area_name')
 
     def get_begin_date(self, obj):
-        begin_date_raw = obj.activity.activity_begin_date
+        begin_date_raw = obj.bus.activity.activity_begin_date
         begin_date = begin_date_raw.strftime('%m月%d日')
 
         return begin_date
@@ -509,32 +508,30 @@ class LeaderItinerarySerializer1(serializers.ModelSerializer):
 
 # 用于领队行程详情
 class LeaderItinerarySerializer2(serializers.ModelSerializer):
-    activity_name = serializers.CharField(source='activity.activity_template.name')
-    ski_resort_location = serializers.CharField(source='activity.activity_template.ski_resort.location')
+    activity_name = serializers.CharField(source='bus.activity.activity_template.name')
+    ski_resort_location = serializers.CharField(source='bus.activity.activity_template.ski_resort.location')
     begin_date = serializers.SerializerMethodField()
-    to_area = serializers.CharField(source='activity.activity_template.ski_resort.area.area_name')
+    to_area = serializers.CharField(source='bus.activity.activity_template.ski_resort.area.area_name')
 
     boardingtime = serializers.SerializerMethodField()
     arrivaltime = serializers.SerializerMethodField()
     boardingloc = serializers.SerializerMethodField()
-    arrivalloc = serializers.CharField(source='activity.activity_template.ski_resort.name')
+    arrivalloc = serializers.CharField(source='bus.activity.activity_template.ski_resort.name')
     busnumber = serializers.SerializerMethodField()
     return_time = serializers.SerializerMethodField()
-    return_loc = serializers.CharField(source='activity.activity_return_loc')
+    return_loc = serializers.CharField(source='bus.activity.activity_return_loc')
 
-    schedule = serializers.CharField(source='activity.activity_template.schedule')
-    attention = serializers.CharField(source='activity.activity_template.attention')
+    notice = serializers.CharField(source='bus.activity.activity_template.leader_notice')
+    schedule = serializers.CharField(source='bus.activity.activity_template.schedule')
+    attention = serializers.CharField(source='bus.activity.activity_template.attention')
 
     itinerary_status = serializers.SerializerMethodField()
 
     bus_stop = serializers.SerializerMethodField()
     
-    # go_boarding_info = serializers.SerializerMethodField()
-    # return_boarding_info = serializers.SerializerMethodField()
-
 
     def get_begin_date(self, obj):
-        begin_date_raw = obj.activity.activity_begin_date
+        begin_date_raw = obj.bus.activity.activity_begin_date
         begin_date = begin_date_raw.strftime('%m月%d日')
         return begin_date
     def get_boardingloc(self, obj):
@@ -559,10 +556,10 @@ class LeaderItinerarySerializer2(serializers.ModelSerializer):
         else:
             return obj.bus.car_number
     def get_return_time(self, obj):
-        if obj.activity.activity_return_time is None:
+        if obj.bus.activity.activity_return_time is None:
             return None
         else:
-            return obj.activity.activity_return_time.strftime('%H:%M')
+            return obj.bus.activity.activity_return_time.strftime('%H:%M')
     def get_itinerary_status(self, obj):
         # 0 -- 未到行程第一天。不显示上车情况
         # 1 -- 行程第一天，且有去程未上车的人。显示去程上车情况，以及验票按钮（万一有人没来，人不齐也能验票）
@@ -571,10 +568,10 @@ class LeaderItinerarySerializer2(serializers.ModelSerializer):
 
         current_date = timezone.now().date()
         one_hour_later = (timezone.now() + timedelta(minutes=60)).time()
-        if obj.activity.activity_begin_date > current_date:              # 出发日期前
+        if obj.bus.activity.activity_begin_date > current_date:              # 出发日期前
             return 0
-        elif obj.activity.activity_end_date == current_date and \
-                one_hour_later > obj.activity.activity_return_time:      # 返程时间半小时内
+        elif obj.bus.activity.activity_end_date == current_date and \
+                one_hour_later > obj.bus.activity.activity_return_time:      # 返程时间半小时内
             return 3
         else:
             boarded_passenger_num = TicketOrder.objects.filter(bus_id=obj.bus.id, go_boarded=True).count()
@@ -582,6 +579,20 @@ class LeaderItinerarySerializer2(serializers.ModelSerializer):
                 return 1
             else:
                 return 2
+    def get_bus_stop(self, obj):
+        stop_set = Bus_boarding_time.objects.filter(bus_id=obj.bus.id).values('id', 'loc__loc__busboardloc')
+        # 把loc__loc__busboardloc重命名为bus_stop
+        for stop in stop_set:
+            stop['bus_stop'] = stop.pop('loc__loc__busboardloc')
+        return stop_set
+
+
+    class Meta:
+        model = LeaderItinerary
+        fields = ['activity_name', 'ski_resort_location', 'begin_date', 'to_area', 
+                  'busnumber', 'boardingtime', 'arrivaltime','boardingloc', 'arrivalloc', 'return_time', 'return_loc',
+                  'notice', 'schedule', 'attention',
+                  'itinerary_status', 'bus_stop',]
 
 
     # def get_go_boarding_info(self, obj):
@@ -601,14 +612,3 @@ class LeaderItinerarySerializer2(serializers.ModelSerializer):
     #         "unboarded_passenger": obj.bus.carry_peoplenum - boarded_passenger_num,
     #     }
     #     return ret_dict
-
-    def get_bus_stop(self, obj):
-        Bus_boarding_time.objects.filter()
-
-
-    class Meta:
-        model = LeaderItinerary
-        fields = ['activity_name', 'ski_resort_location', 'begin_date', 'to_area', 
-                  'busnumber', 'boardingtime', 'arrivaltime','boardingloc', 'arrivalloc', 'return_time', 'return_loc',
-                  'schedule', 'attention',
-                  'itinerary_status', 'boarding_info',]

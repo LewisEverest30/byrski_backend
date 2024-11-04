@@ -3,7 +3,7 @@ import time
 
 
 # 二维码时效（s）
-QR_VALID_PERIOD = 40   
+QR_VALID_PERIOD = 20  
 
 
 class QRVerif:

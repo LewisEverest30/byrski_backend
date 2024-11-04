@@ -38,6 +38,7 @@ urlpatterns = [
     path('python/get_certain_activity_template', get_certain_activity_template.as_view()),
     path('python/get_certain_ticket', get_certain_ticket.as_view()),
     path('python/get_boardingloc', get_boardingloc.as_view()),
+    path('python/get_parner_school', get_parner_school.as_view()),    
 
     path('python/create_ticket_order', create_ticket_order.as_view()),
     path('python/get_itinerary_of_certain_order', get_itinerary_of_certain_order.as_view()),
@@ -62,7 +63,10 @@ urlpatterns = [
     
     path('python/get_itinerary_qrcode', get_itinerary_qrcode.as_view()),
     path('python/verify_itinerary_qrcode', verify_itinerary_qrcode.as_view()),
-    # path('python/get_bus_boarding_list', get_bus_boarding_passenger_list.as_view()),
+    path('python/get_go_bus_boarding_passenger_num', get_go_bus_boarding_passenger_num.as_view()),
+    path('python/get_go_bus_boarding_passenger_list', get_go_bus_boarding_passenger_list.as_view()),
+    path('python/get_return_bus_boarding_passenger_num', get_return_bus_boarding_passenger_num.as_view()),
+    path('python/get_return_bus_boarding_passenger_list', get_return_bus_boarding_passenger_list.as_view()),
 
     # path('get_busloc', get_busloc.as_view()),
     # path('create_activity_order', create_activity_order.as_view()),
