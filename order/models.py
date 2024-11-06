@@ -433,6 +433,7 @@ class OrderSerializer3(serializers.ModelSerializer):
 
 # 用于订单详情
 class OrderSerializer4(serializers.ModelSerializer):
+    ticket_id = serializers.IntegerField(source='ticket.id')
     status_description = serializers.SerializerMethodField()
     pay_ddl = serializers.SerializerMethodField()
 
@@ -480,7 +481,7 @@ class OrderSerializer4(serializers.ModelSerializer):
         fields = ['id', 'status', 'pay_ddl', 'activity_name', 'begin_date', 'intro', 
                   'cover', 'original_price', 'cost', 'status_description',
                   'name', 'gender', 'phone', 'idnumber', 
-                  'ordernumber', 'create_time', 'pay_time']
+                  'ordernumber', 'create_time', 'pay_time', 'ticket_id']
 
 
 
