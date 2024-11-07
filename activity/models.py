@@ -133,6 +133,7 @@ class Activity(models.Model):
     signup_ddl_date = models.DateField(verbose_name='截止报名日期(当天23:59截止报名)', null=False, blank=False)
     lock_ddl_date = models.DateField(verbose_name='锁票日期(当天23:59锁票)', null=False, blank=False)
     status = models.IntegerField(verbose_name='活动状态', choices=Status_choices.choices, default=0)
+    success_departue = models.BooleanField(verbose_name='是否成功运行分车系统', default=False)
 
     target_participant = models.IntegerField(verbose_name='目标报名人数', null=True, blank=True)
     current_participant = models.IntegerField(verbose_name='当前报名人数', default=0)

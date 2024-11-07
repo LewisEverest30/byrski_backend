@@ -75,6 +75,9 @@ class Bus:
         self.pass_station = 0
         self.route = {}
 
+    def __str__(self):
+        return f"Bus type: {self.size}, Capacity: {self.capity}, Empty Seats: {self.empty_seats}, Price: {self.price}, Route: {self.route}, Pass Station: {self.pass_station}, Reserved Seats: {self.reserved_seats}"
+
     def calc_carrying_profit(self,passager_num):
 
         passager_num = passager_num if self.empty_seats > passager_num else self.empty_seats

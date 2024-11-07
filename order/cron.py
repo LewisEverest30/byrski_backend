@@ -4,7 +4,7 @@ from django.db import transaction
 
 from activity.models import Activity, Bustype
 from order.models import TicketOrder, Bus, Boardingloc, Bus_boarding_time
-from .utils import delete_invaild_boardingloc, cancel_unpaid_order, refund_invalid_order
+from .utils import delete_invaild_boardingloc, cancel_unpaid_order, refund_invalid_order, lock_order
 from .departure import plan_route_top
 
 # DEFAULT_BIG_BUS = 53
@@ -23,30 +23,23 @@ def set_activity_expire():
     print ('================ SET ACTIVITY EXPIRE ',str(datetime.datetime.now()), '================')
     # 将到期的活动设为不可报名
     try:
-        acti_objs = Activity.objects.filter(signup_ddl_date__lt = datetime.date.today(), status=0)
-        acti_objs_id = [i.id for i in acti_objs]  # 同一天可能有不止一个活动截止报名
-        print(acti_objs)
-        acti_objs.update(status=1)
-        print(acti_objs)
-
-        print(f'$ set activity as <prevent_signup> [{acti_objs_id}]')
+        with transaction.atomic():
+            acti_objs = Activity.objects.select_for_update().filter(signup_ddl_date__lt = datetime.date.today(), status=0)
+            acti_objs_id = [i.id for i in acti_objs]  # 同一天可能有不止一个活动截止报名
+            acti_objs.update(status=1)
+            print(f'$ Success to set activity as <prevent_signup> #{acti_objs_id}')
     except Exception as e:
         print('$ Fail to set activity as <prevent_signup> ', str(datetime.datetime.now()), repr(e))
     
+    acti_objs = Activity.objects.filter(id__in=acti_objs_id)
     # 先为每个活动剔除无效的订单 和 无效的上车点
     for acti in acti_objs:
         # 清除待付款订单
         cancel_unpaid_order(acti.id)
         # 清除无效上车点
-        delete_invaild_boardingloc(acti.id)        
-
-    # 锁定订单（已付款且上车点有效的）
-    with transaction.atomic():
-        lock_orders = TicketOrder.objects.select_for_update().filter(Q(ticket__activity__id__in=acti_objs_id) &
-                                                                     Q(status=2) &
-                                                                     Q(bus_loc__isnull=False)
-                                                                     )
-        lock_orders.update(status=3)
+        delete_invaild_boardingloc(acti.id)
+        # 锁定订单
+        lock_order(acti.id)
 
     # todo-f 自动将已完成的订单设为返程已上车
     # 处理已经完成订单，将这些订单设为返程已上车(工作频率同样是每天一次，合并到一起了)
@@ -60,33 +53,31 @@ def set_activity_locked():
     print ('================ SET ACTIVITY LOCKED ',str(datetime.datetime.now()), '================')
     # 将到期的活动设为锁票
     try:
-        acti_objs = Activity.objects.filter(Q(lock_ddl_date__lt = datetime.date.today()) & ( Q(status=0) | Q(status=1)))
-        acti_objs_id = [i.id for i in acti_objs]  # 同一天可能有不止一个活动锁票
-        acti_objs.update(status=2)
+        with transaction.atomic():
+            acti_objs = Activity.objects.select_for_update().filter(Q(lock_ddl_date__lt = datetime.date.today()) & ( Q(status=0) | Q(status=1)))
+            acti_objs_id = [i.id for i in acti_objs]  # 同一天可能有不止一个活动锁票
+            acti_objs.update(status=2)
+            print(f'$ Success to set activity as <locked> #{acti_objs_id}')
     except Exception as e:
         print('Fail to set activity as <locked> ', str(datetime.datetime.now()), repr(e))
 
-    # 取消未付款订单（如果日期设置没问题，这里不会出现未付款订单）
+    acti_objs = Activity.objects.filter(id__in=acti_objs_id)
     for acti in acti_objs:
+        # 取消未付款订单（如果日期设置没问题，这里不会出现未付款订单）
         cancel_unpaid_order(acti.id)
 
-    # 退款每个活动中的无效订单（已付款但没有上车点）
-    # todo 调java接口退款
-    for acti in acti_objs:
+        # 退款每个活动中的无效订单（已付款但没有上车点）
+        # todo 调java接口退款
         refund_invalid_order(acti.id)
 
-    # 锁定订单
-    with transaction.atomic():
-        # 已付款，有上车点 =》 锁票
-        TicketOrder.objects.select_for_update().filter(ticket__activity_id__in=acti_objs_id,
-                                                       status=2,
-                                                       bus_loc__isnull=True).update(status=3)
+        # 锁定订单（如果日期设置没问题，这里不会出现未锁定的订单）
+        lock_order(acti.id)
 
 
     # 挨个活动生成乘车信息
-    acti_objs = Activity.objects.filter(id__in=acti_objs_id)
     for acti in acti_objs:
-        
+        print(f'# trying to run the departure allocation program(BRM) for activity#{acti.id}')
+
         # 拿到车型信息
         bus_types = Bustype.objects.filter(activity_id=acti.id).order_by('passenger_num')
         if bus_types.count() != 2:  # 使用默认车型
@@ -96,7 +87,7 @@ def set_activity_locked():
             vehicle_costs = [VEHICLE_COST_DEFAULT[0], VEHICLE_COST_DEFAULT[1]]   # 费用
         else:
             vehicle_capacity = [i.passenger_num-STAFF_NUM for i in bus_types]
-            vehicle_costs = [i.cost for i in bus_types]
+            vehicle_costs = [float(i.price) for i in bus_types]  # 转成float，与BRM中的数据类型一致
 
         # 按区域组织上车点的信息，区域id + 总人数
         area_info = Boardingloc.objects.filter(activity_id=acti.id).values('loc__area_id').distinct().annotate(total_people_num=Sum("choice_peoplenum"))
@@ -112,7 +103,15 @@ def set_activity_locked():
             loc_info_dict = {i['id']: i['choice_peoplenum'] for i in loc_info}
 
             # 获取分车信息(banrenma)
+            print('    ====BRM START====')
+            print('    total_people_num:', total_people_num)
+            print('    loc_info_dict:', loc_info_dict)
+            print('    vehicle_capacity:', vehicle_capacity)
+            print('    vehicle_costs:', vehicle_costs)
             bus_allocation_objs = plan_route_top(total_people_num, loc_info_dict, vehicle_capacity, vehicle_costs)
+            for bus in bus_allocation_objs:
+                print('    bus:', bus)
+            print('    ====BRM END====')
 
             # 查询该活动当前区域内所有订单，并按上车点排序，得到上车点id为key，订单列表为value的字典
             all_related_orders = TicketOrder.objects.select_for_update().filter(Q(ticket__activity_id=acti.id) & Q(bus_loc__loc__area_id=area_id) & ~Q(status=6)).order_by('bus_loc__choice_peoplenum')
@@ -136,12 +135,12 @@ def set_activity_locked():
             for bus in bus_allocation_objs:
                 # 创建车辆
                 # todo 容量是bus的哪个属性？ carry_peoplenum应该等于？
-                newbus = Bus.objects.create(activity_id=acti.id, carry_peoplenum=bus.capacity-bus.reserved_seats, max_people=bus.capacity)
+                newbus = Bus.objects.create(activity_id=acti.id, carry_peoplenum=bus.capity-bus.reserved_seats, max_people=bus.capity)
 
                 # 遍历这辆车经过的各个点，创建车辆-上车点-时间对应
                 for loc_id, people_num in bus.route.items():  # 每个车经过几个点, 上车点id：人数
                     # 创建新的 Bus_boarding_time 实例
-                    newbusloctime = Bus_boarding_time.objects.create(bus_id=newbus.id, loc_id=loc_id, bus_loc_peoplenum=people_num)
+                    newbusloctime = Bus_boarding_time.objects.create(bus_id=newbus.id, loc_id=loc_id, boarding_peoplenum=people_num)
 
                     # 更新订单的车辆和上车点-时间对应
                     begin_index = all_related_orders_dict[loc_id]['allocated_num']
@@ -152,7 +151,19 @@ def set_activity_locked():
                     
                     # 更新已分配人数
                     all_related_orders_dict[loc_id]['allocated_num'] += people_num                
-                
+
+        acti.success_departue = True
+        acti.save()
+        print(f'# success to run the departure allocation program(BRM) for activity#{acti.id}')
+    print ('================ SET ACTIVITY LOCKED FINISHED================')
+
+    return
+
+
+
+# ===================================老版分配大巴========================================================
+
+'''
                 # for loc_id in bus.route:    # 每个车经过几个点, 上车点id：人数
                 #     newbusloctime = Bus_boarding_time.objects.create(bus_id=newbus.id, loc_id=loc_id)
                 #     # 更新上车点的人数
@@ -227,11 +238,11 @@ def set_activity_locked():
             #                 print(repr(e))
             #                 return
 
-    return
+
+'''
 
 
 
-# ===================================老版分配大巴========================================================
 '''
             # 查找本次活动这些区的订单(排除已删除的)，按对应上车点的人数从高到低排序
             all_related_orders = TicketOrder.objects.filter(Q(ticket__activity_id=acti.id) & Q(bus_loc__loc__area_id=area_id) & ~Q(status=6)).order_by('-bus_loc__choice_peoplenum')

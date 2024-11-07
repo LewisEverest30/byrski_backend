@@ -9,7 +9,7 @@ from activity.models import Ticket, Boardingloc, AreaBoardingLowerLimit, Activit
 
 # 取消未付款订单
 def cancel_unpaid_order(activity_id: int):
-    print(f'# cancel unpaid order of activity#{activity_id}')
+    print(f'# cancelling unpaid order of activity#{activity_id}')
     with transaction.atomic():
         unpaid_orders = TicketOrder.objects.select_for_update().filter(status=1, ticket__activity__id=activity_id)
         for order in unpaid_orders:
@@ -22,31 +22,35 @@ def cancel_unpaid_order(activity_id: int):
             Activity.objects.filter(id=order.ticket.activity.id).update(current_participant=F('current_participant')-1)
             Ticket.objects.filter(id=order.ticket.id).update(sales=F('sales')-1)
             User.objects.filter(id=order.user.id).update(points=F('points')-USER_POINTS_INCREASE_DELTA)
-    print(f'$ {len(unpaid_orders)} have been canceled')
+    print(f'$ {len(unpaid_orders)} orders have been canceled')
 
 
 # 检查某个活动涉及的上车点是否符合下限要求
 def delete_invaild_boardingloc(activity_id: int):
-    print(f'# delete invalid boardingloc of activity#{activity_id}')
+    print(f'# deleting invalid boardingloc of activity#{activity_id}')
     # 区域下限检查
-    arealimits = AreaBoardingLowerLimit.objects.select_for_update().filter(activity_id=activity_id)
-    for limit in arealimits:
-        this_area_boardingloc = Boardingloc.objects.select_for_update().filter(activity_id=activity_id,
-                                                    loc__area__id=limit.area.id,)
-        area_people_num = this_area_boardingloc.aaggregate(Sum('choice_peoplenum'))
-        if area_people_num < limit.lower_limit:  # 区域内各个上车点总人数少于区域下限
-            this_area_boardingloc.delete()  # 删除这些上车点
-            print(f'$ delete unsatisfied area limit boardingloc#{[b.id for b in this_area_boardingloc]} of area#{limit.area.id}')
+    with transaction.atomic():
+        arealimits = AreaBoardingLowerLimit.objects.select_for_update().filter(activity_id=activity_id)
+        for limit in arealimits:
+            this_area_boardingloc = Boardingloc.objects.select_for_update().filter(activity_id=activity_id,
+                                                        loc__area__id=limit.area.id,)
+            area_people_num = this_area_boardingloc.aggregate(total=Sum('choice_peoplenum'))['total'] or 0
+            if area_people_num < limit.lower_limit:  # 区域内各个上车点总人数少于区域下限
+                this_area_boardingloc_id = [b.id for b in this_area_boardingloc]
+                this_area_boardingloc.delete()  # 删除这些上车点
+                print(f'$ delete unsatisfied area limit boardingloc#{this_area_boardingloc_id} of area#{limit.area.id}')
     # 上车点下限检查
-    bad_boardingloc = Boardingloc.objects.select_for_update().filter(activity_id=activity_id,
-                                                choice_peoplenum__lt=F('target_peoplenum'))
-    bad_boardingloc.delete()
-    print(f'$ delete unsatisfied loc limit boardingloc#{[b.id for b in bad_boardingloc]}')
+    with transaction.atomic():
+        bad_boardingloc = Boardingloc.objects.select_for_update().filter(activity_id=activity_id,
+                                                    choice_peoplenum__lt=F('target_peoplenum'))
+        bad_boardingloc_id = [b.id for b in bad_boardingloc]
+        bad_boardingloc.delete()
+        print(f'$ delete unsatisfied loc limit boardingloc#{bad_boardingloc_id}')
 
 
 # 退款无效的订单
 def refund_invalid_order(activity_id: int):
-    print(f'# refund invalid order of activity#{activity_id}')
+    print(f'# trying to refund invalid order of activity#{activity_id}')
     with transaction.atomic():
         # 已付款，但没上车点 =》退票
         refund_orders = TicketOrder.objects.select_for_update().filter(ticket__activity_id=activity_id,
@@ -62,9 +66,20 @@ def refund_invalid_order(activity_id: int):
             Ticket.objects.filter(id=order.ticket.id).update(sales=F('sales')-1)
             User.objects.filter(id=order.user.id).update(points=F('points')-USER_POINTS_INCREASE_DELTA)
 
-    print(f'$ {len(refund_orders)} have been refunded')
+    print(f'$ {len(refund_orders)} orders have been refunded')
 
 
+def lock_order(activity_id: int):
+    # 锁定订单（已付款且上车点有效的）
+    print(f'# trying to lock orders of activity#{activity_id}')
+    with transaction.atomic():
+        lock_orders = TicketOrder.objects.select_for_update().filter(ticket__activity_id=activity_id,
+                                                                     status=2,
+                                                                     bus_loc__isnull=False,
+                                                                     )
+        lock_orders_count = lock_orders.count()
+        lock_orders.update(status=3)
+        print(f'$ {lock_orders_count} orders have been set as <locked>')
 
 
 
