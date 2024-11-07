@@ -103,7 +103,8 @@ class BusAdmin(admin.ModelAdmin, ExportExcelMixin):
     # readonly_fields = ('max_people', )
     list_display_links = ['activity']
     list_filter = ("activity", )
-    search_fields = ('activity__activity_template', 'car_number', 'driver_phone')
+    # todo 修复search
+    search_fields = ('activity__activity_template__name', 'car_number', 'driver_phone')
     actions = ['export_as_excel']
     inlines = [Bus_boarding_timeInline, LeaderItineraryInline,]
     # def save_model(self, request, obj, form, change):
@@ -119,7 +120,8 @@ class BusAdmin(admin.ModelAdmin, ExportExcelMixin):
 class Bus_boarding_timeAdmin(admin.ModelAdmin, ExportExcelMixin):
     list_display = ("id", "bus", 'loc', 'boarding_peoplenum', 'time')
     readonly_fields = ("bus", 'loc', 'boarding_peoplenum')
-    search_fields = ('bus__activity__activity_template', 'bus__car_number', 'bus__driver_phone')
+    # todo 修复search
+    search_fields = ('bus__activity__activity_template__name', 'bus__car_number', 'bus__driver_phone')
     actions = ['export_as_excel']
 
 
@@ -133,11 +135,10 @@ class TicketOrderAdmin(admin.ModelAdmin, ExportOrderExcelMixin):
     actions = ['export_as_excel']
 
     list_filter = ('status', 'go_boarded', 'return_boarded', 'ticket__activity__activity_begin_date')
-    search_fields = ('user__name', 'ordernumber', 'ticket__activity__activity_template__name', 'bus_loc__loc__busboardloc',
-                     'ticket__activity__activity_begin_date')
+    search_fields = ('user__name', 'ordernumber', 'ticket__activity__activity_template__name', 'bus_loc__loc__busboardloc',)
 
 
-# 雪票订单
+# 领队行程
 class LeaderItineraryAdmin(admin.ModelAdmin, ExportOrderExcelMixin):
     list_display = ('id', 'leader', 'bus', 'create_time', 'bus_loc')
     # readonly_fields = ("ordernumber", 'user', 'activity', 'need_rent',
@@ -146,8 +147,8 @@ class LeaderItineraryAdmin(admin.ModelAdmin, ExportOrderExcelMixin):
     actions = ['export_as_excel']
 
     list_filter = ('bus__activity__activity_begin_date',)
-    search_fields = ('user__name', 'activity__activity_template__name', 'bus_loc__loc__busboardloc',
-                     'activity__activity_begin_date')
+    # todo 修复search
+    search_fields = ('user__name', 'bus__activity__activity_template__name', 'bus_loc__loc__busboardloc',)
 
 
 admin.site.register(Bus, BusAdmin)

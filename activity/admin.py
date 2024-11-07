@@ -172,7 +172,7 @@ class AreaBoardingLowerLimitInline(admin.TabularInline):
 class ActivityAdmin(admin.ModelAdmin, ExportExcelMixin):
     # form = ActivityForm
     list_display = ("id", "activity_template", 'activity_begin_date', 'signup_ddl_date',
-                     'lock_ddl_date', 'status', 'target_participant', 'current_participant')
+                     'lock_ddl_date', 'status', 'current_participant', 'success_departue')
     actions = ['export_as_excel']
 
     list_filter = ("activity_template", "status")
