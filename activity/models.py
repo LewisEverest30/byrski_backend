@@ -41,7 +41,7 @@ class BoardingLocTemplate(models.Model):
     area = models.ForeignKey(verbose_name='所在地区', to=Area, on_delete=models.CASCADE)
 
     def __str__(self) -> str:
-        return self.campus
+        return self.busboardloc
 
     class Meta:
         verbose_name = "上车点可选范围"

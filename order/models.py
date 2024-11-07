@@ -52,7 +52,7 @@ class Bus_boarding_time(models.Model):
     time = models.TimeField(verbose_name='预计途径时间', null=True)
 
     def __str__(self) -> str:
-        return str(self.time)
+        return f'{self.loc.loc.busboardloc} -- {self.bus.car_number} -- {self.time} #{self.id}' 
 
     class Meta:
         verbose_name = "车-途径点-时间 对应关系"

@@ -1,0 +1,137 @@
+INFO - Total Bus: 4                 Large Bus : 3                  Small Bus : 1                 Total Cost: 3900.00
+INFO - Total Bus: 4                 Large Bus : 3                  Small Bus : 1                 Total Cost: 3900.0
+INFO - Bus : Small_0 
+ Route: dict_keys([5]) Passengers: dict_values([36])
+INFO - Bus : Large_1 
+ Route: dict_keys([3]) Passengers: dict_values([46])
+INFO - Bus : Large_2 
+ Route: dict_keys([1]) Passengers: dict_values([46])
+INFO - Bus : Large_3 
+ Route: dict_keys([5, 1, 3]) Passengers: dict_values([36, 4, 4])
+INFO - ^^^^^^^^^^^^^^^^^((((((plan_route_by_station))))))---------------
+INFO - Bus : Small_0, 
+Route: dict_keys([5]), Passengers: dict_values([36])
+INFO - Bus : Large_1, 
+Route: dict_keys([3]), Passengers: dict_values([46])
+INFO - Bus : Large_2, 
+Route: dict_keys([1]), Passengers: dict_values([46])
+INFO - Bus : Large_3, 
+Route: dict_keys([1, 3, 5]), Passengers: dict_values([4, 4, 36])
+INFO - Average seating rate:0.9891304347826086 
+INFO - 
+Bus counts per station:
+INFO - Station '5' is served by 2 buses.
+INFO - Station '3' is served by 2 buses.
+INFO - Station '1' is served by 2 buses.
+INFO - XXXXXXX0.0*************************
+INFO - Total Bus: 4                 Large Bus : 3                  Small Bus : 1                 Total Cost: 3900.0
+INFO - Bus : Small_0 
+ Route: dict_keys([5]) Passengers: dict_values([36])
+INFO - Bus : Large_1 
+ Route: dict_keys([3]) Passengers: dict_values([46])
+INFO - Bus : Large_2 
+ Route: dict_keys([1]) Passengers: dict_values([46])
+INFO - Bus : Large_3 
+ Route: dict_keys([5, 1, 3]) Passengers: dict_values([36, 4, 4])
+INFO - ^^^^^^^^^^^^^^^^^((((((plan_route_by_station))))))---------------
+INFO - Bus : Small_0, 
+Route: dict_keys([5]), Passengers: dict_values([36])
+INFO - Bus : Large_1, 
+Route: dict_keys([3]), Passengers: dict_values([46])
+INFO - Bus : Large_2, 
+Route: dict_keys([1]), Passengers: dict_values([46])
+INFO - Bus : Large_3, 
+Route: dict_keys([1, 3, 5]), Passengers: dict_values([4, 4, 36])
+INFO - Average seating rate:0.9891304347826086 
+INFO - 
+Bus counts per station:
+INFO - Station '5' is served by 2 buses.
+INFO - Station '3' is served by 2 buses.
+INFO - Station '1' is served by 2 buses.
+INFO - XXXXXXX0.0*************************
+INFO - Total Bus: 4                 Large Bus : 3                  Small Bus : 1                 Total Cost: 3900.0
+INFO - Bus : Small_0 
+ Route: dict_keys([5]) Passengers: dict_values([36])
+INFO - Bus : Large_1 
+ Route: dict_keys([3]) Passengers: dict_values([46])
+INFO - Bus : Large_2 
+ Route: dict_keys([1]) Passengers: dict_values([46])
+INFO - Bus : Large_3 
+ Route: dict_keys([5, 1, 3]) Passengers: dict_values([36, 4, 4])
+INFO - ^^^^^^^^^^^^^^^^^((((((plan_route_by_station))))))---------------
+INFO - Bus : Small_0, 
+Route: dict_keys([5]), Passengers: dict_values([36])
+INFO - Bus : Large_1, 
+Route: dict_keys([3]), Passengers: dict_values([46])
+INFO - Bus : Large_2, 
+Route: dict_keys([1]), Passengers: dict_values([46])
+INFO - Bus : Large_3, 
+Route: dict_keys([1, 3, 5]), Passengers: dict_values([4, 4, 36])
+INFO - Average seating rate:0.9891304347826086 
+INFO - 
+Bus counts per station:
+INFO - Station '5' is served by 2 buses.
+INFO - Station '3' is served by 2 buses.
+INFO - Station '1' is served by 2 buses.
+INFO - XXXXXXX0.0*************************
+INFO - Total Bus: 4                 Large Bus : 3                  Small Bus : 1                 Total Cost: 3900.0
+INFO - Bus : Small_0 
+ Route: dict_keys([5]) Passengers: dict_values([36])
+INFO - Bus : Large_1 
+ Route: dict_keys([3]) Passengers: dict_values([46])
+INFO - Bus : Large_2 
+ Route: dict_keys([1]) Passengers: dict_values([46])
+INFO - Bus : Large_3 
+ Route: dict_keys([5, 1, 3]) Passengers: dict_values([36, 4, 4])
+INFO - ^^^^^^^^^^^^^^^^^((((((plan_route_by_station))))))---------------
+INFO - Bus : Small_0, 
+Route: dict_keys([5]), Passengers: dict_values([36])
+INFO - Bus : Large_1, 
+Route: dict_keys([3]), Passengers: dict_values([46])
+INFO - Bus : Large_2, 
+Route: dict_keys([1]), Passengers: dict_values([46])
+INFO - Bus : Large_3, 
+Route: dict_keys([1, 3, 5]), Passengers: dict_values([4, 4, 36])
+INFO - Average seating rate:0.9891304347826086 
+INFO - 
+Bus counts per station:
+INFO - Station '5' is served by 2 buses.
+INFO - Station '3' is served by 2 buses.
+INFO - Station '1' is served by 2 buses.
+INFO - XXXXXXX0.0*************************
+INFO - Total Bus: 4                 Large Bus : 4                  Small Bus : 0                 Total Cost: 4000.0
+INFO - Bus : Large_0 
+ Route: dict_keys([5, 3, 1]) Passengers: dict_values([18, 16, 6])
+INFO - Bus : Large_1 
+ Route: dict_keys([5]) Passengers: dict_values([46])
+INFO - Bus : Large_2 
+ Route: dict_keys([3]) Passengers: dict_values([46])
+INFO - Bus : Large_3 
+ Route: dict_keys([1]) Passengers: dict_values([46])
+INFO - ^^^^^^^^^^^^^^^^^((((((plan_route_by_station))))))---------------
+INFO - Bus : Large_0, 
+Route: dict_keys([1, 3, 5]), Passengers: dict_values([6, 16, 18])
+INFO - Bus : Large_1, 
+Route: dict_keys([5]), Passengers: dict_values([46])
+INFO - Bus : Large_2, 
+Route: dict_keys([3]), Passengers: dict_values([46])
+INFO - Bus : Large_3, 
+Route: dict_keys([1]), Passengers: dict_values([46])
+INFO - Average seating rate:0.967391304347826 
+INFO - 
+Bus counts per station:
+INFO - Station '1' is served by 2 buses.
+INFO - Station '3' is served by 2 buses.
+INFO - Station '5' is served by 2 buses.
+INFO - XXXXXXX0.0*************************
+INFO - Total Bus: 1                 Large Bus : 0                  Small Bus : 1                 Total Cost: 900.0
+INFO - Bus : Small_0 
+ Route: dict_keys([2]) Passengers: dict_values([22])
+INFO - ^^^^^^^^^^^^^^^^^((((((plan_route_by_station))))))---------------
+INFO - Bus : Small_0, 
+Route: dict_keys([2]), Passengers: dict_values([22])
+INFO - Average seating rate:0.6111111111111112 
+INFO - 
+Bus counts per station:
+INFO - Station '2' is served by 1 buses.
+INFO - XXXXXXX0.0*************************

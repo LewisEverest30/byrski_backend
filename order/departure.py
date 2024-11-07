@@ -30,12 +30,12 @@ def optimal_bus_combos(N, C_A, P_A, C_B, P_B, a_count=0, b_count=0, alpha=1.0, m
         total_cost = a_count * P_A + b_count * P_B
         total_vehicles = a_count + b_count
         
-        max_cost = max(P_A, P_B) * (N // min(C_A, C_B))  
-        max_vehicles = (N // min(C_A, C_B)) + (N // min(C_A, C_B))  
+        max_cost = max(P_A, P_B) * (N // min(C_A, C_B)+1)  
+        # max_vehicles = (N // min(C_A, C_B)) + (N // min(C_A, C_B))  
         normalized_cost = total_cost / max_cost
-        normalized_vehicles = total_vehicles / max_vehicles
+        # normalized_vehicles = total_vehicles / max_vehicles
         
-        combined_cost = alpha * normalized_cost + (1 - alpha) * normalized_vehicles
+        combined_cost = alpha * normalized_cost    # + (1 - alpha) * normalized_vehicles
         return (a_count, b_count), combined_cost 
 
     state = (a_count, b_count)

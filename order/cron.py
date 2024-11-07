@@ -94,6 +94,7 @@ def set_activity_locked():
 
         # 每辆车都只在区域内接人，不会跨区拼车
         for area in area_info:
+            print(f'  # trying to run the departure allocation program(BRM) for area#{area["loc__area_id"]}')
             area_id = area['loc__area_id']
             total_people_num = area['total_people_num']
 
@@ -114,234 +115,48 @@ def set_activity_locked():
             print('    ====BRM END====')
 
             # 查询该活动当前区域内所有订单，并按上车点排序，得到上车点id为key，订单列表为value的字典
-            all_related_orders = TicketOrder.objects.select_for_update().filter(Q(ticket__activity_id=acti.id) & Q(bus_loc__loc__area_id=area_id) & ~Q(status=6)).order_by('bus_loc__choice_peoplenum')
-            if total_people_num != all_related_orders.count():
-                print ('Wrong people num(total_people_num != all_related_orders.count)')
-                print (f'    total_people_num={total_people_num} all_related_orders.count={all_related_orders.count()}')
-                print (f'Fail to create bus for area: {area_id}')                
-                return
+            with transaction.atomic():
+                all_related_orders = TicketOrder.objects.select_for_update().filter(Q(ticket__activity_id=acti.id) & Q(bus_loc__loc__area_id=area_id) & ~Q(status=6)).order_by('bus_loc__choice_peoplenum')
+                if total_people_num != all_related_orders.count():
+                    print ('Wrong people num(total_people_num != all_related_orders.count)')
+                    print (f'    total_people_num={total_people_num} all_related_orders.count={all_related_orders.count()}')
+                    print (f'Fail to create bus for area: {area_id}')                
+                    return
 
-            all_related_orders_dict = {}
-            for order in all_related_orders:    # 将all_related_orders转化成id为key，订单有序列表为value的字典
-                if order.bus_loc.id not in all_related_orders_dict:
-                    all_related_orders_dict[order.bus_loc.id] = {
-                        'allocated_num': 0,
-                        'orders': [order]
-                    }
-                else:
-                    all_related_orders_dict[order.bus_loc.id]['orders'].append(order)
-            
-            # 为每辆车分配订单
-            for bus in bus_allocation_objs:
-                # 创建车辆
-                # todo 容量是bus的哪个属性？ carry_peoplenum应该等于？
-                newbus = Bus.objects.create(activity_id=acti.id, carry_peoplenum=bus.capity-bus.reserved_seats, max_people=bus.capity)
+                all_related_orders_dict = {}
+                for order in all_related_orders:    # 将all_related_orders转化成id为key，订单有序列表为value的字典
+                    if order.bus_loc.id not in all_related_orders_dict:
+                        all_related_orders_dict[order.bus_loc.id] = {
+                            'allocated_num': 0,
+                            'orders': [order]
+                        }
+                    else:
+                        all_related_orders_dict[order.bus_loc.id]['orders'].append(order)
+                
+                # 为每辆车分配订单
+                for bus in bus_allocation_objs:
+                    # 创建车辆
+                    # todo 容量是bus的哪个属性？ carry_peoplenum应该等于？
+                    newbus = Bus.objects.create(activity_id=acti.id, carry_peoplenum=bus.capity-bus.empty_seats, max_people=bus.capity)
 
-                # 遍历这辆车经过的各个点，创建车辆-上车点-时间对应
-                for loc_id, people_num in bus.route.items():  # 每个车经过几个点, 上车点id：人数
-                    # 创建新的 Bus_boarding_time 实例
-                    newbusloctime = Bus_boarding_time.objects.create(bus_id=newbus.id, loc_id=loc_id, boarding_peoplenum=people_num)
+                    # 遍历这辆车经过的各个点，创建车辆-上车点-时间对应
+                    for loc_id, people_num in bus.route.items():  # 每个车经过几个点, 上车点id：人数
+                        # 创建新的 Bus_boarding_time 实例
+                        newbusloctime = Bus_boarding_time.objects.create(bus_id=newbus.id, loc_id=loc_id, boarding_peoplenum=people_num)
 
-                    # 更新订单的车辆和上车点-时间对应
-                    begin_index = all_related_orders_dict[loc_id]['allocated_num']
-                    for order in all_related_orders_dict[loc_id]['orders'][begin_index : begin_index + people_num]:
-                        order.bus_id = newbus.id
-                        order.bus_time_id = newbusloctime.id
-                        order.save()
-                    
-                    # 更新已分配人数
-                    all_related_orders_dict[loc_id]['allocated_num'] += people_num                
-
+                        # 更新订单的车辆和上车点-时间对应
+                        begin_index = all_related_orders_dict[loc_id]['allocated_num']
+                        for order in all_related_orders_dict[loc_id]['orders'][begin_index : begin_index + people_num]:
+                            order.bus_id = newbus.id
+                            order.bus_time_id = newbusloctime.id
+                            order.save()
+                        
+                        # 更新已分配人数
+                        all_related_orders_dict[loc_id]['allocated_num'] += people_num                
+            print(f'  # success to run the departure allocation program(BRM) for area#{area["loc__area_id"]}')
         acti.success_departue = True
         acti.save()
-        print(f'# success to run the departure allocation program(BRM) for activity#{acti.id}')
+        print(f'$ success to run the departure allocation program(BRM) for activity#{acti.id}')
     print ('================ SET ACTIVITY LOCKED FINISHED================')
 
     return
-
-
-
-# ===================================老版分配大巴========================================================
-
-'''
-                # for loc_id in bus.route:    # 每个车经过几个点, 上车点id：人数
-                #     newbusloctime = Bus_boarding_time.objects.create(bus_id=newbus.id, loc_id=loc_id)
-                #     # 更新上车点的人数
-                #     newbusloctime.bus_loc_peoplenum = bus.route[loc_id]
-                #     newbusloctime.save()
-
-                #     # 更新订单的车辆和上车点-时间对应
-                #     begin_index = all_related_orders_dict[loc_id]['allocated_num']
-                #     for order in all_related_orders_dict[loc_id]['orders'][begin_index:]:
-                #         order.bus_id = newbus.id
-                #         order.bus_time_id = newbusloctime.id
-                #         order.save()
-                #     all_related_orders_dict[loc_id]['allocated_num'] += bus.route[loc_id]
-
-
-
-
-
-            # 查找本次活动这些区的订单(排除已删除的)，按对应上车点的人数从高到低排序
-            # all_related_orders = TicketOrder.objects.filter(Q(ticket__activity_id=acti.id) & Q(bus_loc__loc__area_id=area_id) & ~Q(status=6)).order_by('-bus_loc__choice_peoplenum')
-            # # print('all_related_orders', all_related_orders)
-            # if total_people_num != all_related_orders.count():
-            #     print ('Wrong people num(total_people_num != all_related_orders.count)')
-            #     print (f'    total_people_num={total_people_num} all_related_orders.count={all_related_orders.count()}')
-            #     print (f'Fail to create bus for area: {area_id}')                
-            #     return
-            # all_related_orders_id = [i.id for i in all_related_orders]
-
-            # begin_index = 0
-            # # 先创建大号大巴
-            # for j in range(n_big):
-            #     # 切出这辆大巴对应的订单
-            #     orderid_slice = all_related_orders_id[begin_index : begin_index+bus_big]
-            #     begin_index += bus_big
-                
-            #     # 创建一个新大巴
-            #     newbus = Bus.objects.create(activity_id=acti.id, carry_peoplenum=len(orderid_slice), max_people=bus_big_raw)
-
-            #     buslocid_set = set()
-            #     # 遍历该大巴对应的订单
-            #     for orderid in orderid_slice:
-            #         try:
-            #             thisorder = TicketOrder.objects.get(id=orderid)
-            #         except Exception as e:
-            #             print(repr(e))
-            #             return
-
-            #         if thisorder.bus_loc.id not in buslocid_set:
-            #             buslocid_set.add(thisorder.bus_loc.id)
-            #             # 这个bus中存在一个新loc，则新创建一个bus loc time对应
-            #             newbusloctime = Bus_boarding_time.objects.create(bus_id=newbus.id, loc_id=thisorder.bus_loc.id)
-            #             # 补充订单信息，包括大巴车，大巴-上车点-时间对应
-            #             thisorder.bus_id = newbus.id
-            #             thisorder.bus_time_id = newbusloctime.id
-            #             thisorder.save()
-            #             # 更新bus loc time对应表的人数
-            #             # newbusloctime.bus_loc_peoplenum = F('bus_loc_peoplenum') + 1
-            #             newbusloctime.bus_loc_peoplenum += 1
-            #             newbusloctime.save()
-            #         else:
-            #             try:
-            #                 busloctime = Bus_boarding_time.objects.get(bus_id=newbus.id, loc_id=thisorder.bus_loc.id)
-            #                 # 补充订单信息，包括大巴车，大巴-上车点-时间对应
-            #                 thisorder.bus_id = newbus.id
-            #                 thisorder.bus_time_id = busloctime.id
-            #                 thisorder.save()
-            #                 # 更新bus loc time对应表的人数
-            #                 # busloctime.bus_loc_peoplenum = F('bus_loc_peoplenum') + 1
-            #                 busloctime.bus_loc_peoplenum += 1
-            #                 busloctime.save()
-            #             except Exception as e:
-            #                 print(repr(e))
-            #                 return
-
-
-'''
-
-
-
-'''
-            # 查找本次活动这些区的订单(排除已删除的)，按对应上车点的人数从高到低排序
-            all_related_orders = TicketOrder.objects.filter(Q(ticket__activity_id=acti.id) & Q(bus_loc__loc__area_id=area_id) & ~Q(status=6)).order_by('-bus_loc__choice_peoplenum')
-            # print('all_related_orders', all_related_orders)
-            if total_people_num != all_related_orders.count():
-                print ('Wrong people num(total_people_num != all_related_orders.count)')
-                print (f'    total_people_num={total_people_num} all_related_orders.count={all_related_orders.count()}')
-                print (f'Fail to create bus for area: {area_id}')                
-                return
-            all_related_orders_id = [i.id for i in all_related_orders]
-
-            begin_index = 0
-            # 先创建大号大巴
-            for j in range(n_big):
-                # 切出这辆大巴对应的订单
-                orderid_slice = all_related_orders_id[begin_index : begin_index+bus_big]
-                begin_index += bus_big
-                
-                # 创建一个新大巴
-                newbus = Bus.objects.create(activity_id=acti.id, carry_peoplenum=len(orderid_slice), max_people=bus_big_raw)
-
-                buslocid_set = set()
-                # 遍历该大巴对应的订单
-                for orderid in orderid_slice:
-                    try:
-                        thisorder = TicketOrder.objects.get(id=orderid)
-                    except Exception as e:
-                        print(repr(e))
-                        return
-
-                    if thisorder.bus_loc.id not in buslocid_set:
-                        buslocid_set.add(thisorder.bus_loc.id)
-                        # 这个bus中存在一个新loc，则新创建一个bus loc time对应
-                        newbusloctime = Bus_boarding_time.objects.create(bus_id=newbus.id, loc_id=thisorder.bus_loc.id)
-                        # 补充订单信息，包括大巴车，大巴-上车点-时间对应
-                        thisorder.bus_id = newbus.id
-                        thisorder.bus_time_id = newbusloctime.id
-                        thisorder.save()
-                        # 更新bus loc time对应表的人数
-                        # newbusloctime.bus_loc_peoplenum = F('bus_loc_peoplenum') + 1
-                        newbusloctime.bus_loc_peoplenum += 1
-                        newbusloctime.save()
-                    else:
-                        try:
-                            busloctime = Bus_boarding_time.objects.get(bus_id=newbus.id, loc_id=thisorder.bus_loc.id)
-                            # 补充订单信息，包括大巴车，大巴-上车点-时间对应
-                            thisorder.bus_id = newbus.id
-                            thisorder.bus_time_id = busloctime.id
-                            thisorder.save()
-                            # 更新bus loc time对应表的人数
-                            # busloctime.bus_loc_peoplenum = F('bus_loc_peoplenum') + 1
-                            busloctime.bus_loc_peoplenum += 1
-                            busloctime.save()
-                        except Exception as e:
-                            print(repr(e))
-                            return
-
-            # 再创建小号大巴
-            for j in range(n_small):
-                # 切出这辆大巴对应的订单
-                orderid_slice = all_related_orders_id[begin_index : begin_index+bus_small]
-                begin_index += bus_small
-                
-                # 创建一个新大巴
-                newbus = Bus.objects.create(activity_id=acti.id, carry_peoplenum=len(orderid_slice), max_people=bus_small_raw)
-
-                buslocid_set = set()
-                # 遍历该大巴对应的订单
-                for orderid in orderid_slice:
-                    try:
-                        thisorder = TicketOrder.objects.get(id=orderid)
-                    except Exception as e:
-                        print(repr(e))
-                        return
-
-                    if thisorder.bus_loc.id not in buslocid_set:
-                        buslocid_set.add(thisorder.bus_loc.id)
-                        # 这个bus中存在一个新loc，则新创建一个bus loc time对应
-                        newbusloctime = Bus_boarding_time.objects.create(bus_id=newbus.id, loc_id=thisorder.bus_loc.id)
-                        # 补充订单信息，包括大巴车，大巴-上车点-时间对应
-                        thisorder.bus_id = newbus.id
-                        thisorder.bus_time_id = newbusloctime.id
-                        thisorder.save()
-                        # 更新bus loc time对应表的人数
-                        # newbusloctime.bus_loc_peoplenum = F('bus_loc_peoplenum') + 1
-                        newbusloctime.bus_loc_peoplenum += 1
-                        newbusloctime.save()
-                    else:
-                        try:
-                            busloctime = Bus_boarding_time.objects.get(bus_id=newbus.id, loc_id=thisorder.bus_loc.id)
-                            # 补充订单信息，包括大巴车，大巴-上车点-时间对应
-                            thisorder.bus_id = newbus.id
-                            thisorder.bus_time_id = busloctime.id
-                            thisorder.save()
-                            # 更新bus loc time对应表的人数
-                            # busloctime.bus_loc_peoplenum = F('bus_loc_peoplenum') + 1
-                            busloctime.bus_loc_peoplenum += 1
-                            busloctime.save()
-                        except Exception as e:
-                            print(repr(e))
-                            return
-'''

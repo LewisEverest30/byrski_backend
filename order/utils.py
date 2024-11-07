@@ -1,5 +1,6 @@
 from django.db.models import Sum, F
 from django.db import transaction
+import requests
 
 from .models import TicketOrder, USER_POINTS_INCREASE_DELTA
 from user.models import User
@@ -61,6 +62,12 @@ def refund_invalid_order(activity_id: int):
             order.save()
 
             # todo 调java退款
+            java_refund_response = requests.post(url=f'https://gxski.top/java/api/payment/wechat/refund/call?outTradeNo={order.ordernumber}')
+            java_refund_response_json = java_refund_response.json()
+            if java_refund_response_json['code'] == 0:
+                print(f'    $ success to refund order#{order.id}')
+            else:
+                print(f'    $ fail to refund order#{order.id} due to code{java_refund_response_json['code']}: {java_refund_response_json["message"]}')
 
             Activity.objects.filter(id=order.ticket.activity.id).update(current_participant=F('current_participant')-1)
             Ticket.objects.filter(id=order.ticket.id).update(sales=F('sales')-1)
