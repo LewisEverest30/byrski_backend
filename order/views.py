@@ -514,7 +514,9 @@ class get_ticket_order_list_by_type(APIView):
                 orders = TicketOrder.objects.filter(Q(user_id=userid) & Q(status=1))
             elif status_type == 2:  # 进行中
                 orders = TicketOrder.objects.filter(Q(user_id=userid) & (Q(status=2) | Q(status=3)) & Q(return_boarded=False))
-            elif status_type == 3:  # 退款售后
+            elif status_type == 3:  # 已完成
+                orders = TicketOrder.objects.filter(Q(user_id=userid) & Q(status=3) & Q(return_boarded=True))
+            elif status_type == 4:  # 退款售后
                 orders = TicketOrder.objects.filter(Q(user_id=userid) & (Q(status=4) | Q(status=5)))
             
             serializer = OrderSerializer3(instance=orders, many=True)
