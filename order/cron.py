@@ -1,10 +1,9 @@
 import datetime
 from django.db.models import F, Q, Sum
-from .models import Bus, Boardingloc, Bustype, Bus_boarding_time
 from django.db import transaction
 
 from activity.models import Activity, Bustype
-from order.models import TicketOrder
+from order.models import TicketOrder, Bus, Boardingloc, Bus_boarding_time
 from .utils import delete_invaild_boardingloc, cancel_unpaid_order, refund_invalid_order
 from .departure import plan_route_top
 
@@ -26,9 +25,13 @@ def set_activity_expire():
     try:
         acti_objs = Activity.objects.filter(signup_ddl_date__lt = datetime.date.today(), status=0)
         acti_objs_id = [i.id for i in acti_objs]  # 同一天可能有不止一个活动截止报名
-        acti_objs.update(registration_status=False)
+        print(acti_objs)
+        acti_objs.update(status=1)
+        print(acti_objs)
+
+        print(f'$ set activity as <prevent_signup> [{acti_objs_id}]')
     except Exception as e:
-        print('Fail to set activity as <prevent_signup> ', str(datetime.datetime.now()), repr(e))
+        print('$ Fail to set activity as <prevent_signup> ', str(datetime.datetime.now()), repr(e))
     
     # 先为每个活动剔除无效的订单 和 无效的上车点
     for acti in acti_objs:
@@ -48,6 +51,7 @@ def set_activity_expire():
     # todo-f 自动将已完成的订单设为返程已上车
     # 处理已经完成订单，将这些订单设为返程已上车(工作频率同样是每天一次，合并到一起了)
     TicketOrder.set_orders_finished()
+    print ('================ SET ACTIVITY EXPIRE FINISHED================')
 
 
 
@@ -58,14 +62,15 @@ def set_activity_locked():
     try:
         acti_objs = Activity.objects.filter(Q(lock_ddl_date__lt = datetime.date.today()) & ( Q(status=0) | Q(status=1)))
         acti_objs_id = [i.id for i in acti_objs]  # 同一天可能有不止一个活动锁票
-        acti_objs.update(registration_status=False)
+        acti_objs.update(status=2)
     except Exception as e:
         print('Fail to set activity as <locked> ', str(datetime.datetime.now()), repr(e))
 
     # 取消未付款订单（如果日期设置没问题，这里不会出现未付款订单）
-    cancel_unpaid_order(acti_objs_id)
+    for acti in acti_objs:
+        cancel_unpaid_order(acti.id)
 
-    # 退款每个活动中的无效订单
+    # 退款每个活动中的无效订单（已付款但没有上车点）
     # todo 调java接口退款
     for acti in acti_objs:
         refund_invalid_order(acti.id)
@@ -84,7 +89,7 @@ def set_activity_locked():
         
         # 拿到车型信息
         bus_types = Bustype.objects.filter(activity_id=acti.id).order_by('passenger_num')
-        if bus_types.count() != 2:
+        if bus_types.count() != 2:  # 使用默认车型
             print(f'Bustype wrong!(Activity #{acti.id}) Only supports two types of bus!')
             print(f'Try to use default bus type: small={VEHICLE_CAPACITY_DEFAULT[0]} big={VEHICLE_CAPACITY_DEFAULT[1]}')
             vehicle_capacity = [VEHICLE_CAPACITY_DEFAULT[0]-STAFF_NUM, VEHICLE_CAPACITY_DEFAULT[1]-STAFF_NUM]     # 车辆容量
@@ -98,7 +103,6 @@ def set_activity_locked():
 
         # 每辆车都只在区域内接人，不会跨区拼车
         for area in area_info:
-            # print('area', area)
             area_id = area['loc__area_id']
             total_people_num = area['total_people_num']
 

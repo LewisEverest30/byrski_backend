@@ -114,10 +114,12 @@ class TicketOrder(models.Model):
         # 即20分钟前创建且未付款的订单，自动取消
         with transaction.atomic():
             orders = cls.objects.select_for_update().filter(status=1, create_time__lt=threshold_time)
-            orders.update(status=0)
 
             # todo-f 移除订单有效性时，有一套需要联动的数据
             for order in orders:
+                order.status = 0
+                order.save()
+
                 # 上车点人数-1(未截止时退票需要，已截止后上车点有效不能退/无效不需要)
                 if order.bus_loc is not None:
                     Boardingloc.objects.filter(id=order.bus_loc.id).update(choice_peoplenum=F('choice_peoplenum')-1)
@@ -434,7 +436,7 @@ class OrderSerializer3(serializers.ModelSerializer):
 # 用于订单详情
 class OrderSerializer4(serializers.ModelSerializer):
     ticket_id = serializers.IntegerField(source='ticket.id')
-    status_description = serializers.SerializerMethodField()
+    # status_description = serializers.SerializerMethodField()
     pay_ddl = serializers.SerializerMethodField()
 
     activity_name = serializers.CharField(source='ticket.activity.activity_template.name')
@@ -448,22 +450,42 @@ class OrderSerializer4(serializers.ModelSerializer):
     phone = serializers.CharField(source='user.phone')
     idnumber = serializers.CharField(source='user.idnumber')
 
-    def get_status_description(self, obj):
-        if obj.status == 0:
-            return "交易关闭"
-        elif obj.status == 1:
-            return "待付款"
-        elif (obj.status == 2 or obj.status == 3):
-            if obj.return_boarded==False:
-                return "进行中"
-            else:
-                return "已完成"
-        elif obj.status == 4:
-            return "退款中"
-        elif obj.status == 5:
-            return "已退款"
+    status = serializers.SerializerMethodField()
+    can_refund = serializers.SerializerMethodField()
+
+    def get_status(self, obj):
+        if obj.status == 3 and obj.return_boarded == True:  # 已完成=已锁票+返程已上车
+            return 8
+        elif obj.status == 2 and obj.bus_loc is None:   # 待确认=已付款+上车点无效
+            return 7
         else:
-            return "异常状态"
+            return obj.status
+    # def get_status_description(self, obj):
+    #     if obj.status == 0:
+    #         return "交易关闭"
+    #     elif obj.status == 1:
+    #         return "待付款"
+    #     elif (obj.status == 2 or obj.status == 3):
+    #         if obj.return_boarded==False:
+    #             return "进行中"
+    #         else:
+    #             return "已完成"
+    #     elif obj.status == 4:
+    #         return "退款中"
+    #     elif obj.status == 5:
+    #         return "已退款"
+    #     else:
+    #         return "异常状态"
+    def get_can_refund(self, obj):
+        if obj.status == 2:
+            if obj.ticket.activity.status == 1 and obj.bus_loc is not None:  # 活动截止报名，且上车点有效
+                return False
+            if obj.ticket.activity.status == 2:  # 活动已锁票
+                return False
+            return True
+        else:
+            return False
+        
     def get_pay_ddl(self, obj):
         ddl = obj.create_time + timedelta(minutes=19)
         return ddl.strftime('%H:%M')
@@ -479,7 +501,8 @@ class OrderSerializer4(serializers.ModelSerializer):
     class Meta:
         model = TicketOrder
         fields = ['id', 'status', 'pay_ddl', 'activity_name', 'begin_date', 'intro', 
-                  'cover', 'original_price', 'cost', 'status_description',
+                  'cover', 'original_price', 'cost', 'status','can_refund',
+                #   'status_description',
                   'name', 'gender', 'phone', 'idnumber', 
                   'ordernumber', 'create_time', 'pay_time', 'ticket_id']
 
