@@ -194,7 +194,7 @@ class get_all_itinerary(APIView):
             current_date = timezone.now().date()
             orders = TicketOrder.objects.filter(Q(user_id=userid) & 
                                             (Q(status=2) | Q(status=3)) &
-                                            Q(ticket__activity__activity_end_date__gte=current_date))  # 不要已结束的行程
+                                            Q(ticket__activity__activity_end_date__gte=current_date)).order_by('-create_time')  # 不要已结束的行程
             serializer = OrderSerializerItinerary1(instance=orders, many=True)
             return Response({'ret': 0, 'data': list(serializer.data)})
         except Exception as e:
@@ -509,15 +509,15 @@ class get_ticket_order_list_by_type(APIView):
             print(userid)
             status_type = info['type']
             if status_type == 0:  # 全部（不包括已删除的）
-                orders = TicketOrder.objects.filter(Q(user_id=userid) & ~Q(status=6))
+                orders = TicketOrder.objects.filter(Q(user_id=userid) & ~Q(status=6)).order_by('-create_time')
             elif status_type == 1:  # 待付款
-                orders = TicketOrder.objects.filter(Q(user_id=userid) & Q(status=1))
+                orders = TicketOrder.objects.filter(Q(user_id=userid) & Q(status=1)).order_by('-create_time')
             elif status_type == 2:  # 进行中
-                orders = TicketOrder.objects.filter(Q(user_id=userid) & (Q(status=2) | Q(status=3)) & Q(return_boarded=False))
+                orders = TicketOrder.objects.filter(Q(user_id=userid) & (Q(status=2) | Q(status=3)) & Q(return_boarded=False)).order_by('-create_time')
             elif status_type == 3:  # 已完成
-                orders = TicketOrder.objects.filter(Q(user_id=userid) & Q(status=3) & Q(return_boarded=True))
+                orders = TicketOrder.objects.filter(Q(user_id=userid) & Q(status=3) & Q(return_boarded=True)).order_by('-create_time')
             elif status_type == 4:  # 退款售后
-                orders = TicketOrder.objects.filter(Q(user_id=userid) & (Q(status=4) | Q(status=5)))
+                orders = TicketOrder.objects.filter(Q(user_id=userid) & (Q(status=4) | Q(status=5))).order_by('-create_time')
             
             serializer = OrderSerializer3(instance=orders, many=True)
             data = serializer.data                
