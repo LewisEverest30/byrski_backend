@@ -44,7 +44,7 @@ def set_activity_expire():
     # todo-f 自动将已完成的订单设为返程已上车
     # 处理已经完成订单，将这些订单设为返程已上车(工作频率同样是每天一次，合并到一起了)
     TicketOrder.set_orders_finished()
-    print ('================ SET ACTIVITY EXPIRE FINISHED================')
+    print ('================ SET ACTIVITY EXPIRE FINISHED ===================================\n')
 
 
 
@@ -157,6 +157,6 @@ def set_activity_locked():
         acti.success_departue = True
         acti.save()
         print(f'$ success to run the departure allocation program(BRM) for activity#{acti.id}')
-    print ('================ SET ACTIVITY LOCKED FINISHED================')
+    print ('================ SET ACTIVITY LOCKED FINISHED ===================================\n')
 
     return
