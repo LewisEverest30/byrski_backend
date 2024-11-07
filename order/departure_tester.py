@@ -7,20 +7,20 @@ from activity.models import Ticket, Boardingloc, Activity
 
 # ID_FILE = 'test_order_id.txt'
 ID_FILE = '/root/byrski_backend/test_order_id.txt'
-ACTIVITY_ID = 1
-TICKET_ID = 1
-COST = 99
-WXG_ID = 1
-USER_ID = 1
-GOOD_BL_CHOICE = [1, 1, 1, 1, 2, 2, 3, 3, 3, 3, 5, 5, 5, 5, 5]
-BAD_BL = 4
+ACTIVITY_ID = 4
+TICKET_ID = 4
+COST = 399
+WXG_ID = 6
+USER_ID = 3
+GOOD_BL_CHOICE = [12, 12, 13, 14, 14, 15, 16, 17]
+BAD_BL_CHOICE = [18, 19, ]
 
 # 创建测试使用的ticketorder
 def create_test_ticket_order():
     test_order_id_file = open(ID_FILE, 'w')
     
-    # 随机构建200个订单
-    for i in range(200):
+    # 随机构建 个订单
+    for i in range(300):
         busloc_id = random.choice(GOOD_BL_CHOICE)
         order = TicketOrder.objects.create(
             user_id = USER_ID,
@@ -42,8 +42,8 @@ def create_test_ticket_order():
     
     
     # 构建上车点不足的订单
-    for i in range(8):
-        busloc_id = BAD_BL
+    for i in range(22):
+        busloc_id = random.choice(BAD_BL_CHOICE)
         order = TicketOrder.objects.create(
             user_id = USER_ID,
             ordernumber = ('test_trade_no_'+str(datetime.datetime.now())).replace(' ', '').replace('-', '').replace(':', '').replace('.', '')[:32],
@@ -90,5 +90,17 @@ def set_status2_test_ticket_order():
         order_id = int(line)
         order = TicketOrder.objects.get(id=order_id)
         order.status = 2
+        order.save()
+    test_order_id_file.close()
+
+
+# 从test_order_id.txt中读取订单id，将这些的分车信息清除
+def clear_bus_test_ticket_order():
+    test_order_id_file = open('test_order_id.txt', 'r')
+    for line in test_order_id_file:
+        order_id = int(line)
+        order = TicketOrder.objects.get(id=order_id)
+        order.bus_loc_id = None
+        order.bus_time_id = None
         order.save()
     test_order_id_file.close()

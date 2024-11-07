@@ -52,26 +52,27 @@ def delete_invaild_boardingloc(activity_id: int):
 # 退款无效的订单
 def refund_invalid_order(activity_id: int):
     print(f'# trying to refund invalid order of activity#{activity_id}')
-    with transaction.atomic():
-        # 已付款，但没上车点 =》退票
-        refund_orders = TicketOrder.objects.select_for_update().filter(ticket__activity_id=activity_id,
-                                                       status=2,
-                                                       bus_loc__isnull=True)
-        for order in refund_orders:
-            order.status = 4
-            order.save()
+    # with transaction.atomic():
+    # bug: 加锁可能导致java无法设置订单状态
+    # 已付款，但没上车点 =》退票
+    refund_orders = TicketOrder.objects.select_for_update().filter(ticket__activity_id=activity_id,
+                                                    status=2,
+                                                    bus_loc__isnull=True)
+    for order in refund_orders:
+        # order.status = 4
+        # order.save()
 
-            # todo 调java退款
-            java_refund_response = requests.post(url=f'https://gxski.top/java/api/payment/wechat/refund/call?outTradeNo={order.ordernumber}')
-            java_refund_response_json = java_refund_response.json()
-            if 'code' in java_refund_response_json and java_refund_response_json['code'] == 0:
-                print(f'    $ success to refund order#{order.id}')
-            else:
-                print(f'    $ fail to refund order#{order.id} due to {java_refund_response_json}')
+        # todo 调java退款
+        java_refund_response = requests.post(url=f'https://localhost/java/api/payment/wechat/refund/call?outTradeNo={order.ordernumber}')
+        java_refund_response_json = java_refund_response.json()
+        if 'code' in java_refund_response_json and java_refund_response_json['code'] == 0:
+            print(f'    $ success to refund order#{order.id}')
+        else:
+            print(f'    $ fail to refund order#{order.id} due to {java_refund_response_json}')
 
-            Activity.objects.filter(id=order.ticket.activity.id).update(current_participant=F('current_participant')-1)
-            Ticket.objects.filter(id=order.ticket.id).update(sales=F('sales')-1)
-            User.objects.filter(id=order.user.id).update(points=F('points')-USER_POINTS_INCREASE_DELTA)
+        Activity.objects.filter(id=order.ticket.activity.id).update(current_participant=F('current_participant')-1)
+        Ticket.objects.filter(id=order.ticket.id).update(sales=F('sales')-1)
+        User.objects.filter(id=order.user.id).update(points=F('points')-USER_POINTS_INCREASE_DELTA)
 
     print(f'$ {len(refund_orders)} orders have been refunded')
 
