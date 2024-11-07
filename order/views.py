@@ -731,7 +731,7 @@ class get_go_bus_boarding_passenger_num(APIView):
                 return Response({'ret': 422702, 'errmsg': '没有找到对应的领队行程'})
 
             # 所有去程未上车的订单
-            orders_unboarded = TicketOrder.objects.filter(Q(bus_id=leader_itinerary.bus.id) & Q(go_boarded=False) & Q(status__in=[2,3]))
+            orders_unboarded = TicketOrder.objects.filter(Q(bus_id=leader_itinerary.bus.id) & Q(go_boarded=False) & Q(status=3))
             # 从orders_unboarded中筛选该站的订单（不重新查询数据库）
             orders_this_stop_unboarded = [order for order in orders_unboarded if order.bus_loc_id == boardingloc_id]
             # orders_this_stop_unboarded = TicketOrder.objects.filter(Q(bus_id=leader_itinerary.bus.id) & Q(bus_loc_id=boardingloc_id) & Q(go_boarded=False)
@@ -770,10 +770,8 @@ class get_go_bus_boarding_passenger_list(APIView):
             except:
                 return Response({'ret': 422802, 'errmsg': '没有找到对应的领队行程'})
 
-            orders = TicketOrder.objects.filter(Q(bus_id=leader_itinerary.bus.id) & Q(bus_loc_id=boardingloc_id) & Q(go_boarded=False) & Q(status__in=[2,3]))
+            orders = TicketOrder.objects.filter(Q(bus_id=leader_itinerary.bus.id) & Q(bus_loc_id=boardingloc_id) & Q(status=3))
             bus_time = Bus_boarding_time.objects.get(bus_id=leader_itinerary.bus.id, loc_id=boardingloc_id)
-
-
 
             ret_data = {
                 'this_stop_unboarded_passenger_num': orders.count(),
@@ -825,7 +823,7 @@ class get_return_bus_boarding_passenger_num(APIView):
                 return Response({'ret': 422902, 'errmsg': '没有找到对应的领队行程'})
 
             # 所有返程未上车的订单
-            orders_unboarded = TicketOrder.objects.filter(Q(bus_id=leader_itinerary.bus.id) & Q(return_boarded=False) & Q(status__in=[2,3]))
+            orders_unboarded = TicketOrder.objects.filter(Q(bus_id=leader_itinerary.bus.id) & Q(return_boarded=False) & Q(status=3))
 
             ret_data = {
                 'unboarded_passenger_num': orders_unboarded.count(),
@@ -857,7 +855,7 @@ class get_return_bus_boarding_passenger_list(APIView):
             except:
                 return Response({'ret': 423002, 'errmsg': '没有找到对应的领队行程'})
 
-            orders = TicketOrder.objects.filter(Q(bus_id=leader_itinerary.bus.id) & Q(return_boarded=False) & Q(status__in=[2,3]))
+            orders = TicketOrder.objects.filter(Q(bus_id=leader_itinerary.bus.id) & Q(status=3))
 
             ret_data = {
                 'unboarded_passenger_num': orders.count(),
@@ -888,6 +886,57 @@ class get_return_bus_boarding_passenger_list(APIView):
         except Exception as e:
             print(repr(e))
             return Response({'ret': 423001, 'errmsg': '其他错误'})
+
+
+
+# 获取返程上车名单
+class get_go_bus_boarding_total_passenger_list(APIView):
+    authentication_classes = [MyJWTAuthentication, ]
+
+    def post(self,request,*args,**kwargs):
+        userid = request.user['userid']
+
+        info = json.loads(request.body)
+
+        try:
+            leader_itinerary_id = info['leader_itinerary_id']
+
+            try:
+                leader_itinerary = LeaderItinerary.objects.get(Q(id=leader_itinerary_id))
+            except:
+                return Response({'ret': 423102, 'errmsg': '没有找到对应的领队行程'})
+
+            orders = TicketOrder.objects.filter(Q(bus_id=leader_itinerary.bus.id) & Q(status=3))
+
+            ret_data = {
+                'unboarded_passenger_num': orders.count(),
+                'total_passenger_num': leader_itinerary.bus.carry_peoplenum,
+                'unboarded': [],
+                'total': [],
+            }
+            for order in orders:
+                if order.go_boarded == False:    # 未去程上车
+                    unboarded_order_dict = {
+                        'passenger_name': order.user.name,
+                        'gender': order.user.gender,
+                        'phone': order.user.phone,
+                        'boarding_loc': order.bus_loc.loc.busboardloc,
+                        'boarded': order.go_boarded
+                    }
+                total_order_dict = {
+                    'passenger_name': order.user.name,
+                    'gender': order.user.gender,
+                    'phone': order.user.phone,
+                    'boarding_loc': order.bus_loc.loc.busboardloc,
+                    'boarded': order.go_boarded
+                }
+                ret_data['unboarded'].append(unboarded_order_dict)
+                ret_data['total'].append(total_order_dict)
+            return Response({'ret': 0, 'data': ret_data})
+
+        except Exception as e:
+            print(repr(e))
+            return Response({'ret': 423101, 'errmsg': '其他错误'})
 
 
 # ========================================= Depreceted ===========================================

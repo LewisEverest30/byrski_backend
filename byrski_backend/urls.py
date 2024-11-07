@@ -65,6 +65,7 @@ urlpatterns = [
     path('python/verify_itinerary_qrcode', verify_itinerary_qrcode.as_view()),
     path('python/get_go_bus_boarding_passenger_num', get_go_bus_boarding_passenger_num.as_view()),
     path('python/get_go_bus_boarding_passenger_list', get_go_bus_boarding_passenger_list.as_view()),
+    path('python/get_go_bus_boarding_total_passenger_list', get_go_bus_boarding_total_passenger_list.as_view()),
     path('python/get_return_bus_boarding_passenger_num', get_return_bus_boarding_passenger_num.as_view()),
     path('python/get_return_bus_boarding_passenger_list', get_return_bus_boarding_passenger_list.as_view()),
 
