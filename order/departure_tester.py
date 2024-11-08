@@ -100,7 +100,7 @@ def clear_bus_test_ticket_order():
     for line in test_order_id_file:
         order_id = int(line)
         order = TicketOrder.objects.get(id=order_id)
-        order.bus_loc_id = None
+        order.bus_id = None
         order.bus_time_id = None
         order.save()
     test_order_id_file.close()
