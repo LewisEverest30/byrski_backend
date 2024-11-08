@@ -55,7 +55,7 @@ def refund_invalid_order(activity_id: int):
     # with transaction.atomic():
     # bug: 加锁可能导致java无法设置订单状态
     # 已付款，但没上车点 =》退票
-    refund_orders = TicketOrder.objects.select_for_update().filter(ticket__activity_id=activity_id,
+    refund_orders = TicketOrder.objects.filter(ticket__activity_id=activity_id,
                                                     status=2,
                                                     bus_loc__isnull=True)
     for order in refund_orders:
@@ -63,7 +63,7 @@ def refund_invalid_order(activity_id: int):
         # order.save()
 
         # todo 调java退款
-        java_refund_response = requests.post(url=f'https://localhost/java/api/payment/wechat/refund/call?outTradeNo={order.ordernumber}')
+        java_refund_response = requests.post(url=f'https://gxski.top/java/api/payment/wechat/refund/call?outTradeNo={order.ordernumber}')
         java_refund_response_json = java_refund_response.json()
         if 'code' in java_refund_response_json and java_refund_response_json['code'] == 0:
             print(f'    $ success to refund order#{order.id}')
