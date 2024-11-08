@@ -340,12 +340,12 @@ class set_go_boarded(APIView):
     authentication_classes = [MyJWTAuthentication, ]
 
     def post(self,request,*args,**kwargs):
-        # userid = request.user['userid']
+        userid = request.user['userid']
         info = json.loads(request.body)
 
         try:
             order_id = info['order_id']
-            TicketOrder.objects.filter(Q(id=order_id) & ~Q(status=6)).update(go_boarded=True)
+            TicketOrder.objects.filter(Q(user_id=userid) & Q(id=order_id) & ~Q(status=6)).update(go_boarded=True)
             return Response({'ret':0})
         except Exception as e:
             print(repr(e))
@@ -357,12 +357,12 @@ class set_return_boarded(APIView):
     authentication_classes = [MyJWTAuthentication, ]
 
     def post(self,request,*args,**kwargs):
-        # userid = request.user['userid']
+        userid = request.user['userid']
         info = json.loads(request.body)
 
         try:
             order_id = info['order_id']
-            order = TicketOrder.objects.filter(Q(id=order_id) & ~Q(status=6))
+            order = TicketOrder.objects.filter(Q(user_id=userid) & Q(id=order_id) & ~Q(status=6))
             
             current_date = timezone.now().date()
             one_hour_later = (timezone.now() + timedelta(minutes=30)).time()
@@ -430,14 +430,14 @@ class next_activity_guide_step(APIView):
     authentication_classes = [MyJWTAuthentication, ]
 
     def post(self,request,*args,**kwargs):
-        # userid = request.user['userid']
+        userid = request.user['userid']
         info = json.loads(request.body)
 
         try:
             order_id = info['order_id']
             total_step = len(ACTIVITY_GUIDE) - 1  # 0不算在内
 
-            order = TicketOrder.objects.filter(Q(id=order_id) & ~Q(status=6))
+            order = TicketOrder.objects.filter(Q(user_id=userid) & Q(id=order_id) & ~Q(status=6))
             if order[0].completed_steps == total_step + 1:  # 已完成
                 return Response({'ret': 421002, 
                                  'errmsg': '在这步前已完成所有活动指引',
@@ -480,12 +480,12 @@ class set_activity_guide_finished(APIView):
     authentication_classes = [MyJWTAuthentication, ]
 
     def post(self,request,*args,**kwargs):
-        # userid = request.user['userid']
+        userid = request.user['userid']
         info = json.loads(request.body)
 
         try:
             order_id = info['order_id']
-            TicketOrder.objects.filter(Q(id=order_id) & ~Q(status=6)).update(completed_steps=len(ACTIVITY_GUIDE))
+            TicketOrder.objects.filter(Q(user_id=userid) & Q(id=order_id) & ~Q(status=6)).update(completed_steps=len(ACTIVITY_GUIDE))
             return Response({'ret':0})
         except Exception as e:
             print(repr(e))
