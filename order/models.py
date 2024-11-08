@@ -262,6 +262,7 @@ class OrderSerializerItinerary1(serializers.ModelSerializer):
 
 # 用于行程详情
 class OrderSerializerItinerary2(serializers.ModelSerializer):
+    activity_id = serializers.IntegerField(source='ticket.activity.id')
     name = serializers.CharField(source='ticket.activity.activity_template.name')
     ski_resort_location = serializers.CharField(source='ticket.activity.activity_template.ski_resort.location')
     begin_date = serializers.SerializerMethodField()
@@ -381,7 +382,7 @@ class OrderSerializerItinerary2(serializers.ModelSerializer):
 
     class Meta:
         model = TicketOrder
-        fields = ['name', 'ski_resort_location', 'begin_date', 'busnumber',
+        fields = ['activity_id', 'name', 'ski_resort_location', 'begin_date', 'busnumber',
                   'to_area', 'ticket_intro', 'boardingtime', 'arrivaltime',
                   'boardingloc', 'arrivalloc', 'return_time', 'return_loc', 'schedule', 'attention',
                   'qrcode', 'leader_info', 'boardingloc_available', 'itinerary_status']
@@ -604,10 +605,12 @@ class LeaderItinerarySerializer2(serializers.ModelSerializer):
             else:
                 return 2
     def get_bus_stop(self, obj):
-        stop_set = Bus_boarding_time.objects.filter(bus_id=obj.bus.id).values('id', 'loc__loc__busboardloc')
-        # 把loc__loc__busboardloc重命名为bus_stop
+        # 上车点id+上车点名
+        stop_set = Bus_boarding_time.objects.filter(bus_id=obj.bus.id).values('loc__id', 'loc__loc__busboardloc')
+        
         for stop in stop_set:
-            stop['bus_stop'] = stop.pop('loc__loc__busboardloc')
+            stop['id'] = stop.pop('loc__id')    # 把loc__id重命名为id
+            stop['bus_stop'] = stop.pop('loc__loc__busboardloc')    # 把loc__loc__busboardloc重命名为bus_stop
         return stop_set
 
 

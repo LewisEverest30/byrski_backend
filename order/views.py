@@ -770,17 +770,18 @@ class get_go_bus_boarding_passenger_list(APIView):
             except:
                 return Response({'ret': 422802, 'errmsg': '没有找到对应的领队行程'})
 
-            orders = TicketOrder.objects.filter(Q(bus_id=leader_itinerary.bus.id) & Q(bus_loc_id=boardingloc_id) & Q(status=3))
+            orders = TicketOrder.objects.filter(Q(bus_id=leader_itinerary.bus.id) & Q(bus_loc_id=boardingloc_id) & Q(status=3)).order_by('go_boarded')
             bus_time = Bus_boarding_time.objects.get(bus_id=leader_itinerary.bus.id, loc_id=boardingloc_id)
 
             ret_data = {
-                'this_stop_unboarded_passenger_num': orders.count(),
+                'this_stop_unboarded_passenger_num': 0,
                 'this_stop_passenger_num': bus_time.boarding_peoplenum,
                 'unboarded': [],
                 'total': [],
             }
             for order in orders:
                 if order.go_boarded == False:    # 未上车
+                    ret_data['this_stop_unboarded_passenger_num'] += 1
                     unboarded_order_dict = {
                         'passenger_name': order.user.name,
                         'gender': order.user.gender,
@@ -788,6 +789,7 @@ class get_go_bus_boarding_passenger_list(APIView):
                         'boarding_loc': order.bus_loc.loc.busboardloc,
                         'boarded': order.go_boarded
                     }
+                    ret_data['unboarded'].append(unboarded_order_dict)
                 total_order_dict = {
                     'passenger_name': order.user.name,
                     'gender': order.user.gender,
@@ -795,7 +797,6 @@ class get_go_bus_boarding_passenger_list(APIView):
                     'boarding_loc': order.bus_loc.loc.busboardloc,
                     'boarded': order.go_boarded
                 }
-                ret_data['unboarded'].append(unboarded_order_dict)
                 ret_data['total'].append(total_order_dict)
             return Response({'ret': 0, 'data': ret_data})
 
@@ -855,16 +856,17 @@ class get_return_bus_boarding_passenger_list(APIView):
             except:
                 return Response({'ret': 423002, 'errmsg': '没有找到对应的领队行程'})
 
-            orders = TicketOrder.objects.filter(Q(bus_id=leader_itinerary.bus.id) & Q(status=3))
+            orders = TicketOrder.objects.filter(Q(bus_id=leader_itinerary.bus.id) & Q(status=3)).order_by('return_boarded', 'bus_loc_id')
 
             ret_data = {
-                'unboarded_passenger_num': orders.count(),
+                'unboarded_passenger_num': 0,
                 'total_passenger_num': leader_itinerary.bus.carry_peoplenum,
                 'unboarded': [],
                 'total': [],
             }
             for order in orders:
                 if order.return_boarded == False:    # 未上车
+                    ret_data['unboarded_passenger_num'] += 1
                     unboarded_order_dict = {
                         'passenger_name': order.user.name,
                         'gender': order.user.gender,
@@ -872,6 +874,7 @@ class get_return_bus_boarding_passenger_list(APIView):
                         'boarding_loc': order.bus_loc.loc.busboardloc,
                         'boarded': order.go_boarded
                     }
+                    ret_data['unboarded'].append(unboarded_order_dict)
                 total_order_dict = {
                     'passenger_name': order.user.name,
                     'gender': order.user.gender,
@@ -879,7 +882,6 @@ class get_return_bus_boarding_passenger_list(APIView):
                     'boarding_loc': order.bus_loc.loc.busboardloc,
                     'boarded': order.go_boarded
                 }
-                ret_data['unboarded'].append(unboarded_order_dict)
                 ret_data['total'].append(total_order_dict)
             return Response({'ret': 0, 'data': ret_data})
 
@@ -889,7 +891,7 @@ class get_return_bus_boarding_passenger_list(APIView):
 
 
 
-# 获取返程上车名单
+# 获取返程上车总名单
 class get_go_bus_boarding_total_passenger_list(APIView):
     authentication_classes = [MyJWTAuthentication, ]
 
@@ -906,16 +908,17 @@ class get_go_bus_boarding_total_passenger_list(APIView):
             except:
                 return Response({'ret': 423102, 'errmsg': '没有找到对应的领队行程'})
 
-            orders = TicketOrder.objects.filter(Q(bus_id=leader_itinerary.bus.id) & Q(status=3))
+            orders = TicketOrder.objects.filter(Q(bus_id=leader_itinerary.bus.id) & Q(status=3)).order_by('go_boarded', 'bus_loc_id')
 
             ret_data = {
-                'unboarded_passenger_num': orders.count(),
+                'unboarded_passenger_num': 0,
                 'total_passenger_num': leader_itinerary.bus.carry_peoplenum,
                 'unboarded': [],
                 'total': [],
             }
             for order in orders:
                 if order.go_boarded == False:    # 未去程上车
+                    ret_data['unboarded_passenger_num'] += 1
                     unboarded_order_dict = {
                         'passenger_name': order.user.name,
                         'gender': order.user.gender,
@@ -923,6 +926,7 @@ class get_go_bus_boarding_total_passenger_list(APIView):
                         'boarding_loc': order.bus_loc.loc.busboardloc,
                         'boarded': order.go_boarded
                     }
+                    ret_data['unboarded'].append(unboarded_order_dict)
                 total_order_dict = {
                     'passenger_name': order.user.name,
                     'gender': order.user.gender,
@@ -930,7 +934,6 @@ class get_go_bus_boarding_total_passenger_list(APIView):
                     'boarding_loc': order.bus_loc.loc.busboardloc,
                     'boarded': order.go_boarded
                 }
-                ret_data['unboarded'].append(unboarded_order_dict)
                 ret_data['total'].append(total_order_dict)
             return Response({'ret': 0, 'data': ret_data})
 
