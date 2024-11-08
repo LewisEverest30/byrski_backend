@@ -92,6 +92,7 @@ class Leader(models.Model):
     phone = models.CharField(verbose_name='手机号', max_length=11, null=False, blank=False)  # 领队手机号 不能为空！！！
     profile = models.ImageField(verbose_name='照片', null=True, blank=True,
                             upload_to='user/profile/')
+    school = models.ForeignKey(verbose_name='学校', to=School, null=True, blank=False, on_delete=models.SET_NULL)
     leadtimes = models.IntegerField(verbose_name='参与活动次数', default=0)
     
     is_active = models.BooleanField(verbose_name='是否激活', default=True, null=False, blank=False)
@@ -112,11 +113,13 @@ def set_user_subject(sender, instance, created, **kwargs):
         instance.user.phone = instance.phone
         instance.user.profile = instance.profile
         instance.user.intro = instance.intro
+        instance.user.school_id = instance.school_id
         instance.user.save()
     else:  # 如果是修改
         instance.user.phone = instance.phone
         instance.user.profile = instance.profile
         instance.user.intro = instance.intro
+        instance.user.school_id = instance.school_id
         instance.user.save()
 
 
@@ -147,6 +150,7 @@ class UserSerializerBasic(serializers.ModelSerializer):
 class LeaderSerializer(serializers.ModelSerializer):
     name = serializers.SerializerMethodField()
     phone = serializers.SerializerMethodField()
+    school = serializers.CharField(source='school.name')
     # user_id = serializers.SerializerMethodField()
 
     def get_name(self, obj):
@@ -160,7 +164,7 @@ class LeaderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Leader
-        fields = ['id', 'name', 'phone', 'profile', 'intro']
+        fields = ['id', 'name', 'phone', 'profile', 'intro', 'school']
 
 
 
