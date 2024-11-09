@@ -367,7 +367,7 @@ class set_return_boarded(APIView):
             current_date = timezone.now().date()
             one_hour_later = (timezone.now() + timedelta(minutes=30)).time()
             if order[0].ticket.activity.activity_end_date == current_date and \
-                one_hour_later > order.ticket.activity.activity_return_time:      # 返程时间半小时内
+                one_hour_later > order[0].ticket.activity.activity_return_time:      # 返程时间半小时内
                 order.update(return_boarded=True)
                 return Response({'ret':0, 'errmsg':None})
             else:
