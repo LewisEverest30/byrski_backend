@@ -92,7 +92,7 @@ class SkiresortPic(models.Model):
 # 活动类别模板
 class ActivityTemplate(models.Model):
     ski_resort = models.ForeignKey(verbose_name='滑雪场', to=Skiresort, on_delete=models.PROTECT)
-    name = models.CharField(verbose_name='活动名称', max_length=20, null=True, blank=False, help_text='示例：“翠云山银河滑雪场两日票” (雪场+天数， 20字以内)')
+    name = models.CharField(verbose_name='活动名称', max_length=12, null=True, blank=False, help_text='示例：“翠云山滑雪场两日票” (雪场+天数， 12字以内)')
     duration_days = models.IntegerField(verbose_name='持续天数')
     detail = models.TextField(verbose_name='活动详情', null=True, blank=False)
     schedule = models.TextField(verbose_name='行程安排(详细说明)', null=True, blank=False)
