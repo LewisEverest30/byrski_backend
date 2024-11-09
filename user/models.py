@@ -150,7 +150,7 @@ class UserSerializerBasic(serializers.ModelSerializer):
 class LeaderSerializer(serializers.ModelSerializer):
     name = serializers.SerializerMethodField()
     phone = serializers.SerializerMethodField()
-    school = serializers.CharField(source='school.name')
+    school = serializers.SerializerMethodField()
     # user_id = serializers.SerializerMethodField()
 
     def get_name(self, obj):
@@ -162,6 +162,12 @@ class LeaderSerializer(serializers.ModelSerializer):
     def get_user_id(self, obj):
         return obj.user.id
 
+    def get_school(self, obj):
+        if obj.school is None:
+            return None
+        else:
+            return obj.school.name
+    
     class Meta:
         model = Leader
         fields = ['id', 'name', 'phone', 'profile', 'intro', 'school']
