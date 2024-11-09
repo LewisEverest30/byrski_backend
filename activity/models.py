@@ -34,19 +34,19 @@ class School(models.Model):
 
 # 上车点可选范围 
 class BoardingLocTemplate(models.Model):
-    school = models.ForeignKey(verbose_name='学校名称', to=School, null=True, blank=False, on_delete=models.PROTECT)
+    school = models.ForeignKey(verbose_name='学校名称', to=School, on_delete=models.PROTECT)
 
-    campus = models.CharField(verbose_name='学校位置(学校名+校区)', max_length=150, unique=True)
-    busboardloc  =  models.CharField(verbose_name='上车点(学校名+校区+门)', max_length=150, null=True)
+    campus = models.CharField(verbose_name='校区', max_length=150)
+    busboardloc  =  models.CharField(verbose_name='上车点(如：北门)', max_length=150)
     area = models.ForeignKey(verbose_name='所在地区', to=Area, on_delete=models.CASCADE)
 
     def __str__(self) -> str:
-        return self.busboardloc
+        return self.school.name + self.campus + self.busboardloc
 
     class Meta:
         verbose_name = "上车点可选范围"
         verbose_name_plural = "上车点可选范围"
-
+        unique_together = (("school", "campus", "busboardloc", ),)
 
 # 雪场
 class Skiresort(models.Model):
@@ -92,7 +92,7 @@ class SkiresortPic(models.Model):
 # 活动类别模板
 class ActivityTemplate(models.Model):
     ski_resort = models.ForeignKey(verbose_name='滑雪场', to=Skiresort, on_delete=models.PROTECT)
-    name = models.CharField(verbose_name='活动名称', max_length=10, null=True, blank=False, help_text='示例：“两日住滑票” (12字以内)')
+    name = models.CharField(verbose_name='活动票名', max_length=12, null=True, blank=False, help_text='示例：“金山岭两日住滑票” (12字以内)')
     duration_days = models.IntegerField(verbose_name='持续天数')
     detail = models.TextField(verbose_name='活动详情', null=True, blank=False)
     schedule = models.TextField(verbose_name='行程安排(详细说明)', null=True, blank=False)
@@ -142,7 +142,7 @@ class Activity(models.Model):
     update_time = models.DateTimeField(verbose_name='修改时间', auto_now=True)
 
     def __str__(self) -> str:
-        return f'Template({self.activity_template}) - {self.activity_begin_date} - ID#{self.id}'
+        return f'T({self.activity_template})T - {self.activity_begin_date} - ID#{self.id}'
 
     # def save(self, *args, **kwargs):
     #     if not self.ticket_set.exists():
@@ -243,8 +243,8 @@ class Ticket(models.Model):
     update_time = models.DateTimeField(verbose_name='修改时间', auto_now=True, null=True)
 
     def __str__(self) -> str:
-        return str(self.id)+'_'+str(self.activity)
-
+        return f'A{self.activity}A -- #{self.id}'
+    
     class Meta:
         verbose_name = "票"
         verbose_name_plural = "票"
@@ -404,7 +404,28 @@ class ActivityTemplateSerializer(serializers.ModelSerializer):
 
 class BoardinglocSerializer(serializers.ModelSerializer):
     area = serializers.CharField(source='loc.area.area_name')
-    loc = serializers.CharField(source='loc.busboardloc')
+    # loc = serializers.CharField(source='loc.busboardloc')
+    loc = serializers.SerializerMethodField()
+
+    def get_loc(self, obj):
+        return obj.loc.school.name + obj.loc.campus + obj.loc.busboardloc
+    
+    class Meta:
+        model = Boardingloc
+        fields = ['id', 'area', 'loc', 'choice_peoplenum', 'target_peoplenum']
+
+class BoardinglocSerializer2(serializers.ModelSerializer):
+    area = serializers.CharField(source='loc.area.area_name')
+    # loc = serializers.CharField(source='loc.busboardloc')
+    loc = serializers.SerializerMethodField()
+
+    def get_loc(self, obj):
+        return {
+            'school': obj.loc.school.name,
+            'campus': obj.loc.campus,
+            'busboardloc': obj.loc.busboardloc
+        }
+    
     class Meta:
         model = Boardingloc
         fields = ['id', 'area', 'loc', 'choice_peoplenum', 'target_peoplenum']

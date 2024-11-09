@@ -54,9 +54,9 @@ class AreaAdmin(admin.ModelAdmin, ExportExcelMixin):
 
 # 可选上车点
 class BoardingLocTemplateAdmin(admin.ModelAdmin, ExportExcelMixin):
-    list_display = ("id", "campus", "busboardloc")
+    list_display = ("id", "school", "campus", "busboardloc")
     readonly_fields = ()
-    list_display_links = ['busboardloc']
+    list_display_links = ['id']
 
 
 # 雪场

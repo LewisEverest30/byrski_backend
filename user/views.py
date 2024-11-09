@@ -11,7 +11,7 @@ from .auth import MyJWTAuthentication, create_token
 # from .utils import cal_snowboardsize
 
 
-
+TOKEN_EXPIRE_DAYS = 7
 class login(APIView):
     login_url_mod = 'https://api.weixin.qq.com/sns/jscode2session?appid={}&secret={}&js_code={}&grant_type=authorization_code'
 
@@ -27,18 +27,26 @@ class login(APIView):
             oid = login_json['openid']  # 获得的openid
         except Exception as e:
             print(repr(e))
-            return Response({'ret': 500001, 'errmsg': '微信登录接口调用失败', 'openid': None, 'token': None, 'is_student': None, 'identity': None})
+            return Response({'ret': 500001, 'errmsg': '微信登录接口调用失败', 'openid': None, 'token': None, 
+                             'is_student': None, 'identity': None,
+                             'name': None, 'token_expire': None})
 
         user_found = User.objects.filter(openid=oid)  # users表中是否已有该用户
         if user_found.count() == 0:  # 没有该用户，尝试创建一条数据，并返回id
             newuser = User.objects.create(openid=oid)
-            token = create_token(newuser)
-            return Response({'ret': 0, 'errmsg': None, 'openid': oid, 'token': str(token), 'is_student': newuser.is_student, 'identity': newuser.identity})
+            token_expire_time = timezone.now()+datetime.timedelta(days=TOKEN_EXPIRE_DAYS)
+            token = create_token(newuser, expdays=TOKEN_EXPIRE_DAYS)
+            return Response({'ret': 0, 'errmsg': None, 'openid': oid, 'token': str(token), 
+                             'is_student': newuser.is_student, 'identity': newuser.identity,
+                             'name': newuser.name, 'token_expire': token_expire_time})
         else:  # 已有该用户
             # 登录模式
+            token_expire_time = timezone.now()+datetime.timedelta(days=TOKEN_EXPIRE_DAYS)
             token = create_token(user_found[0])
             # print(token)
-            return Response({'ret': 0, 'errmsg': None, 'openid': oid, 'token': str(token), 'is_student': user_found[0].is_student, 'identity': user_found[0].identity})
+            return Response({'ret': 0, 'errmsg': None, 'openid': oid, 'token': str(token), 
+                             'is_student': user_found[0].is_student, 'identity': user_found[0].identity,
+                             'name': user_found[0].name, 'token_expire': token_expire_time})
 
 
 class check_student(APIView):

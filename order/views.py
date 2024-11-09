@@ -786,7 +786,7 @@ class get_go_bus_boarding_passenger_list(APIView):
                         'passenger_name': order.user.name,
                         'gender': order.user.gender,
                         'phone': order.user.phone,
-                        'boarding_loc': order.bus_loc.loc.busboardloc,
+                        'boarding_loc': order.bus_loc.loc.school.name+order.bus_loc.loc.campus+order.bus_loc.loc.busboardloc,
                         'boarded': order.go_boarded
                     }
                     ret_data['unboarded'].append(unboarded_order_dict)
@@ -794,7 +794,7 @@ class get_go_bus_boarding_passenger_list(APIView):
                     'passenger_name': order.user.name,
                     'gender': order.user.gender,
                     'phone': order.user.phone,
-                    'boarding_loc': order.bus_loc.loc.busboardloc,
+                    'boarding_loc': order.bus_loc.loc.school.name+order.bus_loc.loc.campus+order.bus_loc.loc.busboardloc,
                     'boarded': order.go_boarded
                 }
                 ret_data['total'].append(total_order_dict)
@@ -871,7 +871,7 @@ class get_return_bus_boarding_passenger_list(APIView):
                         'passenger_name': order.user.name,
                         'gender': order.user.gender,
                         'phone': order.user.phone,
-                        'boarding_loc': order.bus_loc.loc.busboardloc,
+                        'boarding_loc': order.bus_loc.loc.school.name+order.bus_loc.loc.campus+order.bus_loc.loc.busboardloc,
                         'boarded': order.go_boarded
                     }
                     ret_data['unboarded'].append(unboarded_order_dict)
@@ -879,7 +879,7 @@ class get_return_bus_boarding_passenger_list(APIView):
                     'passenger_name': order.user.name,
                     'gender': order.user.gender,
                     'phone': order.user.phone,
-                    'boarding_loc': order.bus_loc.loc.busboardloc,
+                    'boarding_loc': order.bus_loc.loc.school.name+order.bus_loc.loc.campus+order.bus_loc.loc.busboardloc,
                     'boarded': order.go_boarded
                 }
                 ret_data['total'].append(total_order_dict)
@@ -923,7 +923,7 @@ class get_go_bus_boarding_total_passenger_list(APIView):
                         'passenger_name': order.user.name,
                         'gender': order.user.gender,
                         'phone': order.user.phone,
-                        'boarding_loc': order.bus_loc.loc.busboardloc,
+                        'boarding_loc': order.bus_loc.loc.school.name+order.bus_loc.loc.campus+order.bus_loc.loc.busboardloc,
                         'boarded': order.go_boarded
                     }
                     ret_data['unboarded'].append(unboarded_order_dict)
@@ -931,7 +931,7 @@ class get_go_bus_boarding_total_passenger_list(APIView):
                     'passenger_name': order.user.name,
                     'gender': order.user.gender,
                     'phone': order.user.phone,
-                    'boarding_loc': order.bus_loc.loc.busboardloc,
+                    'boarding_loc': order.bus_loc.loc.school.name+order.bus_loc.loc.campus+order.bus_loc.loc.busboardloc,
                     'boarded': order.go_boarded
                 }
                 ret_data['total'].append(total_order_dict)

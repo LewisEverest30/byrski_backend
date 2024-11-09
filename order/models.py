@@ -52,7 +52,7 @@ class Bus_boarding_time(models.Model):
     time = models.TimeField(verbose_name='预计途径时间', null=True)
 
     def __str__(self) -> str:
-        return f'{self.loc.loc.busboardloc} -- {self.bus.car_number} -- {self.time} #{self.id}' 
+        return f'{self.loc.loc.school.name+self.loc.loc.campus+self.loc.loc.busboardloc} -- {self.bus.car_number} -- {self.time} #{self.id}' 
 
     class Meta:
         verbose_name = "车-途径点-时间 对应关系"
@@ -168,40 +168,6 @@ class LeaderItinerary(models.Model):
 # ===================================序列化器==============================================
 
 # ==============================行程相关==============================================
-# 
-class OrderSerializer1(serializers.ModelSerializer):
-    ski_resort_name = serializers.CharField(source='ticket.activity.activity_template.ski_resort.name')
-    location = serializers.CharField(source='ticket.activity.activity_template.ski_resort.location')
-    ski_resort_phone = serializers.CharField(source='ticket.activity.activity_template.ski_resort.phone')
-    
-    from_area = serializers.CharField(source='bus_loc.loc.area.area_name')
-    to_area = serializers.CharField(source='ticket.activity.activity_template.ski_resort.area.area_name')
-
-    # bus = serializers.SerializerMethodField(method_name='getbus')
-    boardingloc = serializers.CharField(source='bus_loc.loc.busboardloc')
-    boardingtime = serializers.SerializerMethodField()
-
-    name = serializers.CharField(source='user.name')
-    gender = serializers.IntegerField(source='user.gender')
-    phone = serializers.CharField(source='user.phone')
-
-    qrcode = serializers.SerializerMethodField()
-
-    def get_boardingtime(self, obj):
-        if obj.bus_time is None:
-            return None
-        else:
-            return obj.bus_time.time.strftime('%H:%M')
-
-    def get_qrcode(self, obj):
-        actiwxgroup = obj.wxgroup.qrcode
-        return settings.MEDIA_URL + str(actiwxgroup)
-
-    class Meta:
-        model = TicketOrder
-        fields = ['ski_resort_name', 'location', 'ski_resort_phone', 
-                  'from_area', 'to_area', 'boardingloc', 'boardingtime',
-                  'name', 'gender', 'phone', 'qrcode']
 
 
 # 用于下单后的行程卡
@@ -214,7 +180,8 @@ class OrderSerializer2(serializers.ModelSerializer):
     to_area = serializers.CharField(source='ticket.activity.activity_template.ski_resort.area.area_name')
 
     # bus = serializers.SerializerMethodField(method_name='getbus')
-    boardingloc = serializers.CharField(source='bus_loc.loc.busboardloc')
+    # boardingloc = serializers.CharField(source='bus_loc.loc.busboardloc')
+    boardingloc = serializers.SerializerMethodField()
     boardingtime = serializers.SerializerMethodField()
 
     name = serializers.CharField(source='user.name')
@@ -223,8 +190,14 @@ class OrderSerializer2(serializers.ModelSerializer):
 
     qrcode = serializers.SerializerMethodField()
 
+    def get_boardingloc(self, obj):
+        if obj.bus_loc is None or obj.bus_loc.loc is None:
+            return None
+        else:
+            return obj.bus_loc.loc.school.name + obj.bus_loc.loc.campus + obj.bus_loc.loc.busboardloc
+
     def get_boardingtime(self, obj):
-        if obj.bus_time is None:
+        if obj.bus_time is None or obj.bus_time.time is None:
             return None
         else:
             return obj.bus_time.time.strftime('%H:%M')
@@ -291,10 +264,10 @@ class OrderSerializerItinerary2(serializers.ModelSerializer):
         begin_date = begin_date_raw.strftime('%m月%d日')
         return begin_date
     def get_boardingloc(self, obj):
-        if obj.bus_loc is None or obj.bus_loc.loc.busboardloc is None:
+        if obj.bus_loc is None or obj.bus_loc.loc is None:
             return None
         else:
-            return obj.bus_loc.loc.busboardloc
+            return obj.bus_loc.loc.school.name + obj.bus_loc.loc.campus + obj.bus_loc.loc.busboardloc
     def get_boardingtime(self, obj):
         if obj.bus_time is None or obj.bus_time.time is None:
             return None
@@ -560,10 +533,10 @@ class LeaderItinerarySerializer2(serializers.ModelSerializer):
         begin_date = begin_date_raw.strftime('%m月%d日')
         return begin_date
     def get_boardingloc(self, obj):
-        if obj.bus_loc is None or obj.bus_loc.loc.busboardloc is None:
+        if obj.bus_loc is None or obj.bus_loc.loc is None:
             return None
         else:
-            return obj.bus_loc.loc.busboardloc
+            return obj.bus_loc.loc.school.name + obj.bus_loc.loc.campus + obj.bus_loc.loc.busboardloc
     def get_boardingtime(self, obj):
         bus_time = Bus_boarding_time.objects.filter(bus_id=obj.bus.id, loc_id=obj.bus_loc.id).first()
         if bus_time is None or bus_time.time is None:
@@ -606,11 +579,15 @@ class LeaderItinerarySerializer2(serializers.ModelSerializer):
                 return 2
     def get_bus_stop(self, obj):
         # 上车点id+上车点名
-        stop_set = Bus_boarding_time.objects.filter(bus_id=obj.bus.id).values('loc__id', 'loc__loc__busboardloc')
+        stop_set = Bus_boarding_time.objects.filter(bus_id=obj.bus.id).values('loc__id', 'loc__loc__school__name', 'loc__loc__campus', 'loc__loc__busboardloc')
         
         for stop in stop_set:
             stop['id'] = stop.pop('loc__id')    # 把loc__id重命名为id
-            stop['bus_stop'] = stop.pop('loc__loc__busboardloc')    # 把loc__loc__busboardloc重命名为bus_stop
+            stop['bus_stop'] = {
+                'school': stop.pop('loc__loc__school__name'),
+                'campus': stop.pop('loc__loc__campus'),
+                'busboardloc': stop.pop('loc__loc__busboardloc'),
+            }
         return stop_set
 
 

@@ -50,7 +50,7 @@ class ExportOrderExcelMixin(object):
                     f'{obj.user.phone}',
                     '男' if obj.user.gender==0 else '女',
                     f'{obj.user.school.name}',
-                    f'{obj.bus_loc.loc.busboardloc}',
+                    f'{obj.bus_loc.loc.school.name+obj.bus_loc.loc.campus+obj.bus_loc.loc.busboardloc}',
                     f'{obj.cost}',
                     f'{obj.ticket.activity.activity_template.ski_resort.name}',
                     f'{obj.ticket.activity.activity_template.name}',
@@ -135,7 +135,8 @@ class TicketOrderAdmin(admin.ModelAdmin, ExportOrderExcelMixin):
     actions = ['export_as_excel']
 
     list_filter = ('status', 'go_boarded', 'return_boarded', 'ticket__activity__activity_begin_date')
-    search_fields = ('user__name', 'ordernumber', 'ticket__activity__activity_template__name', 'bus_loc__loc__busboardloc',)
+    search_fields = ('user__name', 'ordernumber', 'ticket__activity__activity_template__name', 'bus_loc__loc__school__name',
+                     'bus_loc__loc__campus', 'bus_loc__loc__busboardloc')
 
 
 # 领队行程
@@ -148,7 +149,8 @@ class LeaderItineraryAdmin(admin.ModelAdmin, ExportOrderExcelMixin):
 
     list_filter = ('bus__activity__activity_begin_date',)
     # todo 修复search
-    search_fields = ('user__name', 'bus__activity__activity_template__name', 'bus_loc__loc__busboardloc',)
+    search_fields = ('user__name', 'bus__activity__activity_template__name', 'bus_loc__loc__school__name',
+                     'bus_loc__loc__campus', 'bus_loc__loc__busboardloc')
 
 
 admin.site.register(Bus, BusAdmin)
