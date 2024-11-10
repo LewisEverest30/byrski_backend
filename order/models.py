@@ -306,26 +306,29 @@ class OrderSerializerItinerary2(serializers.ModelSerializer):
             return True
 
     def get_itinerary_status(self, obj):
-        # 0 -- 上车点有效且未到行程第一天，不显示上车按钮
+        # 0 -- 上车点有效且未到 始发点时间0.5小时内  ，不显示上车按钮
         # 1 -- 报名截止，且上车点无效，需要调用获取替换的上车点
-        # 2 -- 活动当天，显示上车按钮和验票按钮
+        # 2 -- 活动当天始发站0.5小时内，显示上车按钮和验票按钮
+        # 7 -- 已上车后且未验票，验票页面
         # 3 -- 已上车且已完成验票，未启动活动指引，显示活动指引启动按钮
         # 4 -- 活动指引已开始，显示活动指引各个步骤
         # 5 -- 已完成/跳过活动指引,，显示返程信息，直接显示返程上车按钮
         # 6 -- 返程已上车，返程上车按钮变灰色
-        # 7 -- 已上车后且未验票，验票页面
+    
 
         # 活动第一天前
             # 上车点有效 0
             # 上车点无效 1
 
         # 活动第一天到最后一天
-            # 去程未上车 2
+            # 去程未上车且距离站点预计到达时间0.5小时以外 1
+            # 去程未上车且距离站点预计到达时间0.5小时内 2
             # 去程已上车，且返程上车了 6
             # 去程上车了，且返程未上车，且未验票，7
             # 去程已上车，返程未上车，未启动教程 3
             # 去程已上车，返程未上车，已启动活动指引 4
             # 去程已上车，返程未上车，已完成/跳过活动指引 5
+        min_boarding_time = obj.bus
 
         current_date = timezone.now().date()
         # current_time = timezone.now().time()
@@ -340,7 +343,10 @@ class OrderSerializerItinerary2(serializers.ModelSerializer):
         #     return 6
         else:                                                                   # 其他时间内
             if obj.go_boarded == False:  # 去程还未上车
-                return 2
+                if obj.bus_time is not None and obj.bus_time.time is not None and obj.bus_time.time > timezone.now().time() + timedelta(minutes=30):  # 上车时间还没到
+                    return 2
+                else:
+                    return 1
             else:                        # 上车了
                 if obj.return_boarded == True:  # 返程已上车
                     return 6
