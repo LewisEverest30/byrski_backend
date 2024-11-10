@@ -354,7 +354,7 @@ class OrderSerializerItinerary2(serializers.ModelSerializer):
                 if obj.bus_time is not None and obj.bus_time.time is not None and obj.bus_time.time < (timezone.now() + timedelta(minutes=30)).time():  # 上车时间还没到
                     return 2
                 else:
-                    return 1
+                    return 0
             else:                        # 上车了
                 if obj.return_boarded == True:  # 返程已上车
                     return 6
