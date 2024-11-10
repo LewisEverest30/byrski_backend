@@ -34,7 +34,7 @@ class Bus(models.Model):
     arrival_time = models.TimeField(verbose_name='预计到达雪场时间', null=True, blank=False)
     route = models.CharField(verbose_name='路线规划', max_length=500, null=True, blank=True)
 
-    leader = models.ForeignKey(verbose_name='领队', to=Leader, on_delete=models.PROTECT, null=True, blank=True)
+    # leader = models.ForeignKey(verbose_name='领队', to=Leader, on_delete=models.PROTECT, null=True, blank=False)
 
     def __str__(self) -> str:
         return f'{self.activity} -- {self.car_number} (#{self.id})'
@@ -293,11 +293,20 @@ class OrderSerializerItinerary2(serializers.ModelSerializer):
         actiwxgroup = obj.wxgroup.qrcode
         return settings.MEDIA_URL + str(actiwxgroup)
     def get_leader_info(self, obj):
-        if obj.bus is None or obj.bus.leader is None:
+        if obj.bus is None:
+            return None
+        leader_itinerary = LeaderItinerary.objects.filter(bus_id=obj.bus.id)
+        if leader_itinerary.count() == 0:
             return None
         else:
-            serializer = LeaderSerializer(instance=obj.bus.leader, many=False)
+            leader = leader_itinerary[0].leader
+            serializer = LeaderSerializer(instance=leader, many=False)
             return serializer.data
+        # if obj.bus is None or obj.bus.leader is None:
+        #     return None
+        # else:
+        #     serializer = LeaderSerializer(instance=obj.bus.leader, many=False)
+        #     return serializer.data
 
     def get_boardingloc_available(self, obj):
         if obj.bus_loc is None :
@@ -328,7 +337,6 @@ class OrderSerializerItinerary2(serializers.ModelSerializer):
             # 去程已上车，返程未上车，未启动教程 3
             # 去程已上车，返程未上车，已启动活动指引 4
             # 去程已上车，返程未上车，已完成/跳过活动指引 5
-        min_boarding_time = obj.bus
 
         current_date = timezone.now().date()
         # current_time = timezone.now().time()
@@ -343,7 +351,7 @@ class OrderSerializerItinerary2(serializers.ModelSerializer):
         #     return 6
         else:                                                                   # 其他时间内
             if obj.go_boarded == False:  # 去程还未上车
-                if obj.bus_time is not None and obj.bus_time.time is not None and obj.bus_time.time > timezone.now().time() + timedelta(minutes=30):  # 上车时间还没到
+                if obj.bus_time is not None and obj.bus_time.time is not None and obj.bus_time.time < (timezone.now() + timedelta(minutes=30)).time():  # 上车时间还没到
                     return 2
                 else:
                     return 1

@@ -97,7 +97,7 @@ class LeaderItineraryInline(admin.TabularInline):
     #         instance.save()
     #     formset.save_m2m()
 class BusAdmin(admin.ModelAdmin, ExportExcelMixin):
-    list_display = ('id', 'activity', 'car_number', 'driver_phone', 'carry_peoplenum', 'max_people', 'route', 'leader')
+    list_display = ('id', 'activity', 'car_number', 'driver_phone', 'carry_peoplenum', 'max_people', 'route')
     # todo 恢复
     # readonly_fields = ('activity', 'max_people')
     # readonly_fields = ('max_people', )
