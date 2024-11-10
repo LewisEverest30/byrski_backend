@@ -656,7 +656,7 @@ class get_itinerary_qrcode(APIView):
 class verify_itinerary_qrcode(APIView):
     authentication_classes = [MyJWTAuthentication, ]
     def post(self,request,*args,**kwargs):
-        # userid = request.user['userid']    # 领队ID
+        userid = request.user['userid']    # 领队ID
         info = json.loads(request.body)
         try:
             qr_code = info['qr_code']
@@ -664,6 +664,11 @@ class verify_itinerary_qrcode(APIView):
             if int(cur_time) - int(timestamp) < QR_VALID_PERIOD:
                 orders = TicketOrder.objects.filter(Q(ordernumber=ordernumber) & Q(ticket_checked=0))
                 if len(orders):
+                    
+                    leader_itinerary = LeaderItinerary.objects.filter(Q(leader__user_id=userid) & Q(bus_id=orders[0].bus_id))  # 查找提交的订单对应的 且是当前领队的 领队行程
+                    if leader_itinerary.count() == 0:
+                        return Response({'ret': 422004,'errmsg':"该用户不属于本辆大巴车",'data':None})
+                    
                     TicketOrder.objects.filter(Q(ordernumber=ordernumber)).update(ticket_checked=1)
                     return Response({'ret': 0, 'data':'Success'})
                 else:
