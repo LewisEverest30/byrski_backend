@@ -665,7 +665,7 @@ class verify_itinerary_qrcode(APIView):
                 orders = TicketOrder.objects.filter(Q(ordernumber=ordernumber) & Q(ticket_checked=0))
                 if len(orders):
                     
-                    leader_itinerary = LeaderItinerary.objects.filter(Q(leader__user_id=userid) & Q(bus_id=orders[0].bus_id))  # 查找提交的订单对应的 且是当前领队的 领队行程
+                    leader_itinerary = LeaderItinerary.objects.filter(Q(leader__user_id=userid) & Q(bus__activity_id=orders[0].ticket.activity.id))  # 查找提交的订单所属活动对应的 且是当前领队的 领队行程
                     if leader_itinerary.count() == 0:
                         return Response({'ret': 422004,'errmsg':"该用户不属于本辆大巴车",'data':None})
                     

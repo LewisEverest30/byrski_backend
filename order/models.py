@@ -1,7 +1,7 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
-from datetime import timedelta
+from datetime import timedelta, datetime
 from rest_framework import serializers
 from django.conf import settings
 from django.db.models import Q, F, Sum
@@ -340,7 +340,7 @@ class OrderSerializerItinerary2(serializers.ModelSerializer):
 
         current_date = timezone.now().date()
         # current_time = timezone.now().time()
-        one_hour_later = (timezone.now() + timedelta(minutes=30)).time()
+        # one_hour_later = (timezone.now() + timedelta(minutes=30)).time()
         if obj.ticket.activity.activity_begin_date > current_date:              # 出发日期前
             if obj.bus_loc is None:  # 上车点无效了
                 return 1
@@ -351,7 +351,14 @@ class OrderSerializerItinerary2(serializers.ModelSerializer):
         #     return 6
         else:                                                                   # 其他时间内
             if obj.go_boarded == False:  # 去程还未上车
-                if obj.bus_time is not None and obj.bus_time.time is not None and obj.bus_time.time < (timezone.now() + timedelta(minutes=30)).time():  # 上车时间还没到
+                bus_datetime = datetime.combine(
+                    obj.ticket.activity.activity_begin_date,  # 活动开始日期
+                    obj.bus_time.time  # 预计上车时间
+                )
+                # print(bus_datetime)
+                # print(timezone.now() + timedelta(minutes=30))
+                # print(bus_datetime < (timezone.now() + timedelta(minutes=30)))
+                if obj.bus_time is not None and obj.bus_time.time is not None and bus_datetime < (timezone.now() + timedelta(minutes=30)):  # 上车时间还没到
                     return 2
                 else:
                     return 0
@@ -593,7 +600,7 @@ class LeaderItinerarySerializer2(serializers.ModelSerializer):
                 return 2
     def get_bus_stop(self, obj):
         # 上车点id+上车点名
-        stop_set = Bus_boarding_time.objects.filter(bus_id=obj.bus.id).values('loc__id', 'loc__loc__school__name', 'loc__loc__campus', 'loc__loc__busboardloc')
+        stop_set = Bus_boarding_time.objects.filter(bus_id=obj.bus.id).order_by('time').values('loc__id', 'loc__loc__school__name', 'loc__loc__campus', 'loc__loc__busboardloc')
         
         for stop in stop_set:
             stop['id'] = stop.pop('loc__id')    # 把loc__id重命名为id

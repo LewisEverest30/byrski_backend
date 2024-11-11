@@ -82,7 +82,7 @@ class SkiresortAdmin(admin.ModelAdmin, ExportExcelMixin):
 
 # 活动模板
 class ActivityTemplateAdmin(admin.ModelAdmin, ExportExcelMixin):
-    list_display = ("id", "ski_resort", 'duration_days', )
+    list_display = ("id", "name", "ski_resort", 'duration_days', )
     actions = ['export_as_excel']
     list_filter = ("ski_resort", )
 

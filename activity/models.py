@@ -262,7 +262,8 @@ class SkiresortSerializer1(serializers.ModelSerializer):
         tickets_min_price = Ticket.objects.filter(activity__activity_template__ski_resort__id=obj.id).aggregate(Min('price'))
         try:
             return tickets_min_price['price__min']
-        except:
+        except Exception as e:
+            print(repr(e))
             return None
 
     class Meta:
