@@ -3,7 +3,22 @@ from rest_framework.exceptions import AuthenticationFailed
 import jwt
 from django.conf import settings
 import datetime
+import json
 
+
+from rest_framework.views import exception_handler
+from rest_framework.response import Response
+from rest_framework import status
+
+def custom_exception_handler(exc, context):
+    # 调用默认的异常处理程序，获取标准的响应
+    response = exception_handler(exc, context)
+
+    # 如果异常是 AuthenticationFailed，确保返回 401 状态码
+    if isinstance(exc, AuthenticationFailed):
+        response = Response({'ret': -1, 'errmsg': 'Token Authentication Failed'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    return response
 
 def create_token(user, expdays=7):
     headers = {
@@ -30,6 +45,7 @@ class MyJWTAuthentication(BaseAuthentication):
             # print(payload)
         except Exception as e:
             print(repr(e))
+            # raise AuthenticationFailed()
             raise AuthenticationFailed({'ret': -1, 'errmsg': 'Token Authentication Failed'})
 
         return payload, token

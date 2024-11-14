@@ -135,7 +135,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 APPID ='wx2b4fa660ea71d1a5'
 APPSECRET = 'c9811b45b61ecab06bf595101741eb0c'
 
-SECRET_KEY = 'd916dac1-e79a-11eb-a95c-14f6d8e4b681'
+SECRET_KEY = 'd916dac1-e79a-11eb-a95c-14f6d8e4b492'
+# SECRET_KEY = 'd916dac1-e79a-11eb-a95c-14f6d8e4b681'
 
 CRONJOBS = [
     ('0 */1 * * *', 'user.cron.update_access_token', '>> ' + '/root/byrski_backend_crontab_logs/update_access_token.log'),
@@ -143,3 +144,6 @@ CRONJOBS = [
     ('2 0 * * *', 'order.cron.set_activity_locked', '>> ' + '/root/byrski_backend_crontab_logs/set_activity_locked.log'), # 00:01
 ]
 
+REST_FRAMEWORK = {
+    'EXCEPTION_HANDLER': 'user.auth.custom_exception_handler'
+}
