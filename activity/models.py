@@ -135,7 +135,7 @@ class Activity(models.Model):
     status = models.IntegerField(verbose_name='活动状态', choices=Status_choices.choices, default=0)
     success_departue = models.BooleanField(verbose_name='是否成功运行分车系统', default=False)
 
-    target_participant = models.IntegerField(verbose_name='目标报名人数', null=True, blank=True)
+    target_participant = models.IntegerField(verbose_name='报名人数上限', null=True, blank=False, default=9999)
     current_participant = models.IntegerField(verbose_name='当前报名人数', default=0)
 
     create_time = models.DateTimeField(verbose_name='创建时间', auto_now_add=True) 

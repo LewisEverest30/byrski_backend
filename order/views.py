@@ -94,48 +94,61 @@ class create_ticket_order(APIView):
                                                      (Q(status=1) | Q(status=2) | Q(status=3) | Q(status=4)))  # 已取消和完成退款的为无效的
             if order_found.count() == 0:
                 try:
-                    # 绑定微信群（取消和退款的和删除的也会占用群名额）
-                    this_acti_order_num = TicketOrder.objects.filter(ticket__activity_id=ticket.activity.id).count()
-                    wxgroup_index = int(this_acti_order_num / WXGROUP_MAX_NUM)
-                    # wxgroup_choice = ActivityWxGroup.objects.filter(activity_id=ticket.activity.id).order_by('id')[wxgroup_index]
-                    
-                    try:
-                        wxgroup_choice = ActivityWxGroup.objects.filter(activity_id=ticket.activity.id).order_by('id')[wxgroup_index]
-                    except Exception as e:
-                        print(repr(e))
-                        return Response({'ret': 420010, 'errmsg': '可用微信群数量不足', 
+                    with transaction.atomic():
+                        # 检查活动参与人数是否已达上限，加锁再判断，防止判断到创建订单之后有人抢先下单
+                        activity = Activity.objects.select_for_update().get(id=ticket.activity.id)
+                        if activity.current_participant >= activity.target_participant:
+                            return Response({'ret': 420011, 'errmsg': '活动参与人数已达上限', 
+                                             'data': {
+                                                 'order_id': None, 
+                                                 'ordernumber': None, 
+                                                 'ip': ip
+                                                 }
+                                            })
+                        
+                        # 绑定微信群（取消和退款的和删除的也会占用群名额）
+                        this_acti_order_num = TicketOrder.objects.filter(ticket__activity_id=ticket.activity.id).count()
+                        wxgroup_index = int(this_acti_order_num / WXGROUP_MAX_NUM)
+                        # wxgroup_choice = ActivityWxGroup.objects.filter(activity_id=ticket.activity.id).order_by('id')[wxgroup_index]
+                        
+                        try:
+                            wxgroup_choice = ActivityWxGroup.objects.filter(activity_id=ticket.activity.id).order_by('id')[wxgroup_index]
+                        except Exception as e:
+                            print(repr(e))
+                            return Response({'ret': 420010, 'errmsg': '可用微信群数量不足', 
+                                            'data': {
+                                                'order_id':None, 
+                                                'ordernumber':None, 
+                                                'ip': ip
+                                            },
+                                            })
+                        
+                        
+                        # 创建订单
+                        # ordernumber = str(userid).zfill(6)+str(datetime.datetime.now())[2:20].replace(' ', '').replace('-', '').replace(':', '').replace('.', '')
+                        ordernumber = ('out_trade_no_'+str(datetime.datetime.now())).replace(' ', '').replace('-', '').replace(':', '').replace('.', '')[:32]
+                        
+                        neworder = TicketOrder.objects.create(ordernumber=ordernumber , user_id=userid, ticket_id=ticket_id, 
+                                                    bus_loc_id=bus_loc_id, wxgroup_id=wxgroup_choice.id,
+                                                    cost=ticket.price)
+                        
+                        # 上车点人数+1
+                        Boardingloc.objects.filter(id=bus_loc_id).update(choice_peoplenum=F('choice_peoplenum')+1)
+                        # 活动参与人数+1
+                        Activity.objects.filter(id=ticket.activity.id).update(current_participant=F('current_participant')+1)
+                        # 票销量+1
+                        Ticket.objects.filter(id=ticket_id).update(sales=F('sales')+1)
+                        # 用户积分+K
+                        User.objects.filter(id=userid).update(points=F('points')+USER_POINTS_INCREASE_DELTA)
+                        # 用户节省金额+差价
+                        User.objects.filter(id=userid).update(saved_money=F('saved_money')+(ticket.original_price - ticket.price))
+                        return Response({'ret': 0, 'errmsg': None, 
                                         'data': {
-                                            'order_id':None, 
-                                            'ordernumber':None, 
+                                            'order_id':neworder.id, 
+                                            'ordernumber':ordernumber, 
                                             'ip': ip
-                                        },
+                                        }
                                         })
-                    
-                    
-                    # 创建订单
-                    # ordernumber = str(userid).zfill(6)+str(datetime.datetime.now())[2:20].replace(' ', '').replace('-', '').replace(':', '').replace('.', '')
-                    ordernumber = ('out_trade_no_'+str(datetime.datetime.now())).replace(' ', '').replace('-', '').replace(':', '').replace('.', '')[:32]
-                    
-                    neworder = TicketOrder.objects.create(ordernumber=ordernumber , user_id=userid, ticket_id=ticket_id, 
-                                                  bus_loc_id=bus_loc_id, wxgroup_id=wxgroup_choice.id,
-                                                  cost=ticket.price)
-                    
-                    # 上车点人数+1
-                    Boardingloc.objects.filter(id=bus_loc_id).update(choice_peoplenum=F('choice_peoplenum')+1)
-                    # 活动参与人数+1
-                    Activity.objects.filter(id=ticket.activity.id).update(current_participant=F('current_participant')+1)
-                    # 票销量+1
-                    Ticket.objects.filter(id=ticket_id).update(sales=F('sales')+1)
-                    # 用户积分+K
-                    User.objects.filter(id=userid).update(points=F('points')+USER_POINTS_INCREASE_DELTA)
-
-                    return Response({'ret': 0, 'errmsg': None, 
-                                     'data': {
-                                         'order_id':neworder.id, 
-                                         'ordernumber':ordernumber, 
-                                         'ip': ip
-                                     }
-                                     })
                 except Exception as e:
                     print(repr(e))
                     return Response({'ret': 420008, 'errmsg': '其他错误，请检查提交的数据是否合法', 
@@ -272,6 +285,8 @@ class try_refund_ticket_order(APIView):
             Ticket.objects.filter(id=order.ticket.id).update(sales=F('sales')-1)
             # 用户积分-K
             User.objects.filter(id=userid).update(points=F('points')-USER_POINTS_INCREASE_DELTA)
+            # 用户节省金额-差价
+            User.objects.filter(id=userid).update(saved_money=F('saved_money')-(order.ticket.original_price - order.cost))
             
             return Response({'ret': 0, 'errmsg': None})
 
@@ -590,7 +605,9 @@ class cancel_ticket_order(APIView):
             Ticket.objects.filter(id=order.ticket.id).update(sales=F('sales')-1)
             # 用户积分-K
             User.objects.filter(id=userid).update(points=F('points')-USER_POINTS_INCREASE_DELTA)
-            
+            # 用户节省金额-差价
+            User.objects.filter(id=userid).update(saved_money=F('saved_money')-(order.ticket.original_price - order.cost))
+
             return Response({'ret': 0, 'errmsg': None})
 
         except Exception as e:

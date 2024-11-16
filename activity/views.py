@@ -8,7 +8,7 @@ from rest_framework.views import APIView
 
 from .models import *
 from user.auth import MyJWTAuthentication
-from user.models import User
+from user.models import User, UserSerializerHomepage
 
 
 # ==================================信息获取======================================
@@ -23,28 +23,47 @@ class get_all_skiresort(APIView):
         return Response({'ret': 0, 'data': list(serializer.data)})
 
 
-
-class get_tickets_of_homepage_activity(APIView):
+class get_homepage(APIView):
     authentication_classes = [MyJWTAuthentication, ]
 
     def get(self,request,*args,**kwargs):
+        userid = request.user['userid']
+        
         try:
-            activity_found = Activity.objects.filter().order_by('-create_time')
-            skiresort_id = activity_found[0].activity_template.ski_resort.id
-            skiresort_found = Skiresort.objects.filter(id=skiresort_id)
-            ticket_found = Ticket.objects.filter(activity__activity_template__ski_resort__id=skiresort_id)
-            skiresort_serializer = SkiresortSerializer2(instance=skiresort_found[0], many=False)
-            ticket_serializer = TicketSerializer1(instance=ticket_found, many=True)
+            user_found = User.objects.get(id=userid)
+            user_serializer = UserSerializerHomepage(instance=user_found, many=False)
+            
+            activities = []
+            ski_resorts = Skiresort.objects.all()
+            for ski_resort in ski_resorts:
+                activity_found = Activity.objects.filter(activity_template__ski_resort_id=ski_resort.id,
+                                                         status=0).order_by('activity_begin_date')    # 当前雪场下可以报名的最近要开始的
+                if activity_found.count() == 0:
+                    continue
+                skiresort_serializer_data = SkiresortSerializer1(instance=ski_resort, many=False).data
+                activities.append({
+                    'skiresort_id': ski_resort.id,
+                    'skiresort_name': skiresort_serializer_data['name'],
+                    'skiresort_area': ski_resort.area.city_name+ski_resort.area.area_name,
+                    'begin_date': activity_found[0].activity_begin_date.strftime('%Y年%m月%d日'),
+                    'cover': skiresort_serializer_data['cover'],
+                    'min_price': skiresort_serializer_data['min_price'],
+                })
+
+            # 根据字典的begin_date对activities排序
+            activities.sort(key=lambda x: datetime.datetime.strptime(x['begin_date'], '%Y年%m月%d日'))
+
 
             return Response({'ret': 0, 'errmsg': None, 
                              'data': {
-                                 'ski_resort': skiresort_serializer.data,
-                                 'ticket': list(ticket_serializer.data)
+                                 'user': user_serializer.data,
+                                 'activity': activities
                              }
                              })
         except Exception as e:
             print(repr(e))
             return Response({'ret': 410001, 'errmsg': '其他错误', 'data': None})
+
 
 
 class get_tickets_of_certain_skiresort(APIView):
@@ -55,7 +74,7 @@ class get_tickets_of_certain_skiresort(APIView):
         try:
             skiresort_id = info['id']
             skiresort_found = Skiresort.objects.filter(id=skiresort_id)
-            ticket_found = Ticket.objects.filter(activity__activity_template__ski_resort__id=skiresort_id)
+            ticket_found = Ticket.objects.filter(activity__activity_template__ski_resort__id=skiresort_id).order_by('activity__activity_begin_date')
             skiresort_serializer = SkiresortSerializer2(instance=skiresort_found[0], many=False)
             ticket_serializer = TicketSerializer1(instance=ticket_found, many=True)
 

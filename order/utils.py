@@ -23,6 +23,7 @@ def cancel_unpaid_order(activity_id: int):
             Activity.objects.filter(id=order.ticket.activity.id).update(current_participant=F('current_participant')-1)
             Ticket.objects.filter(id=order.ticket.id).update(sales=F('sales')-1)
             User.objects.filter(id=order.user.id).update(points=F('points')-USER_POINTS_INCREASE_DELTA)
+            User.objects.filter(id=order.user.id).update(saved_money=F('saved_money')-(order.ticket.original_price - order.cost))
     print(f'$ {len(unpaid_orders)} orders have been canceled')
 
 
@@ -73,7 +74,7 @@ def refund_invalid_order(activity_id: int):
         Activity.objects.filter(id=order.ticket.activity.id).update(current_participant=F('current_participant')-1)
         Ticket.objects.filter(id=order.ticket.id).update(sales=F('sales')-1)
         User.objects.filter(id=order.user.id).update(points=F('points')-USER_POINTS_INCREASE_DELTA)
-
+        User.objects.filter(id=order.user.id).update(saved_money=F('saved_money')-(order.ticket.original_price - order.cost))
     print(f'$ {len(refund_orders)} orders have been refunded')
 
 

@@ -32,7 +32,8 @@ urlpatterns = [
     path('python/get_user_basic_info', get_user_basic_info.as_view()),
     path('python/update_user_basic_info', update_user_basic_info.as_view()),
 
-    path('python/get_tickets_of_homepage_activity', get_tickets_of_homepage_activity.as_view()),
+        path('python/get_homepage', get_homepage.as_view()),
+    # path('python/get_tickets_of_homepage_activity', get_tickets_of_homepage_activity.as_view()),
     path('python/get_all_skiresort', get_all_skiresort.as_view()),
     path('python/get_tickets_of_certain_skiresort', get_tickets_of_certain_skiresort.as_view()),
     path('python/get_certain_activity_template', get_certain_activity_template.as_view()),

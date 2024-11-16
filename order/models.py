@@ -7,6 +7,8 @@ from django.conf import settings
 from django.db.models import Q, F, Sum
 from django.db import transaction
 from django.core.validators import MinValueValidator
+from django.db.models.signals import post_save, post_delete
+from django.dispatch import receiver
 
 from user.models import User, Leader, LeaderSerializer
 from activity.models import Ticket, ActivityWxGroup, Activity, Boardingloc
@@ -130,6 +132,8 @@ class TicketOrder(models.Model):
                 Ticket.objects.filter(id=order.ticket.id).update(sales=F('sales')-1)
                 # 用户积分-K
                 User.objects.filter(id=order.user.id).update(points=F('points')-USER_POINTS_INCREASE_DELTA)
+                # 用户节省金额-差价
+                User.objects.filter(id=order.user.id).update(saved_money=F('saved_money')-(order.ticket.original_price - order.cost))
 
     @classmethod
     def set_orders_finished(cls):
@@ -161,6 +165,31 @@ class LeaderItinerary(models.Model):
     class Meta:
         verbose_name = "领队行程"
         verbose_name_plural = "领队行程"
+# 创建LeaderItinerary时通过信号机制来设置Leader表的内容
+@receiver(post_save, sender=LeaderItinerary)
+def set_leader_subject(sender, instance, created, **kwargs):
+    if created:  # 如果是新创建的
+        instance.leader.leadtimes += 1
+        instance.leader.save()
+# 删除LeaderItinerary时通过信号机制来设置Leader表的内容
+@receiver(post_delete, sender=LeaderItinerary)
+def unset_leader_subject(sender, instance, **kwargs):
+    instance.leader.leadtimes -= 1
+    instance.leader.save()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

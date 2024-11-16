@@ -52,6 +52,7 @@ class User(models.Model):
     profile = models.ImageField(verbose_name='头像', null=True, blank=True,
                             upload_to='user/profile/')
     points = models.IntegerField(verbose_name='积分', null=True, blank=True, default=0)
+    saved_money = models.DecimalField(verbose_name='节省金额', max_digits=8, decimal_places=2, default=0)
 
     identity = models.IntegerField(verbose_name='身份', null=False, blank=False, choices=Identity_choices.choices, default=0)
     intro = models.TextField(verbose_name='个人介绍', null=True, blank=True)
@@ -146,6 +147,41 @@ class UserSerializerBasic(serializers.ModelSerializer):
                   'ski_board', 'ski_level', 'ski_favor'
                   ]
 
+class UserSerializerHomepage(serializers.ModelSerializer):
+    school = serializers.SerializerMethodField()
+    register_days = serializers.SerializerMethodField()
+    leadtimes = serializers.SerializerMethodField()
+
+    def get_school(self, obj):
+        if obj.identity == 1:
+            leader = Leader.objects.get(user_id=obj.id)
+            return leader.school.name
+        if obj.school is None:
+            return None
+        else:
+            return obj.school.name
+    
+    def get_register_days(self, obj):
+        time_now = timezone.now()
+        time_regi = obj.create_time
+        return (time_now - time_regi).days
+
+    def get_leadtimes(self, obj):
+        if obj.identity == 1:
+            try:
+                leader = Leader.objects.get(user_id=obj.id)
+                return leader.leadtimes
+            except Exception as e:
+                print(repr(e))
+                return 0
+        else:
+            return None
+    
+    class Meta:
+        model = User
+        fields = ['id', 'name', 'school', 'identity', 'is_student',
+                  'register_days', 'saved_money', 'leadtimes',
+                  'intro']
 
 class LeaderSerializer(serializers.ModelSerializer):
     name = serializers.SerializerMethodField()
