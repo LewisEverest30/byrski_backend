@@ -913,7 +913,7 @@ class get_return_bus_boarding_passenger_list(APIView):
 
 
 
-# 获取返程上车总名单
+# 获取去程上车总名单
 class get_go_bus_boarding_total_passenger_list(APIView):
     authentication_classes = [MyJWTAuthentication, ]
 
@@ -962,6 +962,172 @@ class get_go_bus_boarding_total_passenger_list(APIView):
         except Exception as e:
             print(repr(e))
             return Response({'ret': 423101, 'errmsg': '其他错误'})
+
+
+
+# 设置某一站已经完成上车
+class set_busstop_go_finished(APIView):
+    authentication_classes = [MyJWTAuthentication, ]
+
+    def post(self,request,*args,**kwargs):
+        userid = request.user['userid']
+        info = json.loads(request.body)
+
+        try:
+            bus_id = info['bus_id']
+            bus_loc_id = info['bus_stop_id']
+            found = Bus_boarding_time.objects.filter(bus_id=bus_id, loc_id=bus_loc_id)
+            if found.count() == 0:
+                return Response({'ret': 423502, 'errmsg': '没有找到对应的站点'})
+            found.update(go_finished=True)
+            return Response({'ret':0})
+        except Exception as e:
+            print(repr(e))
+            return Response({'ret': 423501})
+
+# 设置大巴抵达雪场
+class set_bus_go_finished(APIView):
+    authentication_classes = [MyJWTAuthentication, ]
+
+    def post(self,request,*args,**kwargs):
+        userid = request.user['userid']
+        info = json.loads(request.body)
+
+        try:
+            bus_id = info['bus_id']
+            found = Bus.objects.filter(id=bus_id)
+            if found.count() == 0:
+                return Response({'ret': 423602, 'errmsg': '没有找到对应的大巴车'})
+            found.update(go_finished=True)
+            return Response({'ret':0})
+        except Exception as e:
+            print(repr(e))
+            return Response({'ret': 423601})
+
+# 设置滑雪已结束
+class set_bus_ski_finished(APIView):
+    authentication_classes = [MyJWTAuthentication, ]
+
+    def post(self,request,*args,**kwargs):
+        userid = request.user['userid']
+        info = json.loads(request.body)
+
+        try:
+            bus_id = info['bus_id']
+            found = Bus.objects.filter(id=bus_id)
+            if found.count() == 0:
+                return Response({'ret': 423702, 'errmsg': '没有找到对应的大巴车'})
+            found.update(ski_finished=True)
+            return Response({'ret':0})
+        except Exception as e:
+            print(repr(e))
+            return Response({'ret': 423701})
+
+# 设置返程大巴已经集合完毕
+class set_bus_return_finished(APIView):
+    authentication_classes = [MyJWTAuthentication, ]
+
+    def post(self,request,*args,**kwargs):
+        userid = request.user['userid']
+        info = json.loads(request.body)
+
+        try:
+            bus_id = info['bus_id']
+            found = Bus.objects.filter(id=bus_id)
+            if found.count() == 0:
+                return Response({'ret': 423802, 'errmsg': '没有找到对应的大巴车'})
+            found.update(return_finished=True)
+            return Response({'ret':0})
+        except Exception as e:
+            print(repr(e))
+            return Response({'ret': 423801})
+
+
+# 获取验票人数情况
+class get_ticket_unchecked_passenger_num(APIView):
+    authentication_classes = [MyJWTAuthentication, ]
+
+    def post(self,request,*args,**kwargs):
+        userid = request.user['userid']
+
+        info = json.loads(request.body)
+
+        try:
+            leader_itinerary_id = info['leader_itinerary_id']
+
+            try:
+                leader_itinerary = LeaderItinerary.objects.get(Q(id=leader_itinerary_id))
+            except:
+                return Response({'ret': 424002, 'errmsg': '没有找到对应的领队行程'})
+
+            # 车上所有未验票的订单
+            orders_unchecked = TicketOrder.objects.filter(Q(bus_id=leader_itinerary.bus.id) & Q(ticket_checked=False) & Q(status=3))
+
+            ret_data = {
+                'unchecked_passenger_num': orders_unchecked.count(),
+                'total_passenger_num': leader_itinerary.bus.carry_peoplenum,
+                'checked_passenger_num': leader_itinerary.bus.carry_peoplenum - orders_unchecked.count(),
+            }
+
+            return Response({'ret': 0, 'data': ret_data})
+
+        except Exception as e:
+            print(repr(e))
+            return Response({'ret': 424001, 'errmsg': '其他错误'})
+
+
+# 获取未验票名单
+class get_ticket_unchecked_passenger_list(APIView):
+    authentication_classes = [MyJWTAuthentication, ]
+
+    def post(self,request,*args,**kwargs):
+        userid = request.user['userid']
+
+        info = json.loads(request.body)
+
+        try:
+            leader_itinerary_id = info['leader_itinerary_id']
+
+            try:
+                leader_itinerary = LeaderItinerary.objects.get(Q(id=leader_itinerary_id))
+            except:
+                return Response({'ret': 424102, 'errmsg': '没有找到对应的领队行程'})
+
+            orders = TicketOrder.objects.filter(Q(bus_id=leader_itinerary.bus.id) & Q(status=3)).order_by('ticket_checked', 'bus_loc_id')
+
+            ret_data = {
+                'unchecked_passenger_num': 0,
+                'total_passenger_num': leader_itinerary.bus.carry_peoplenum,
+                'unchecked': [],
+                'total': [],
+            }
+            for order in orders:
+                if order.ticket_checked == False:    # 未验票
+                    ret_data['unchecked_passenger_num'] += 1
+                    unchecked_order_dict = {
+                        'passenger_name': order.user.name,
+                        'gender': order.user.gender,
+                        'phone': order.user.phone,
+                        'boarding_loc': order.bus_loc.loc.school.name+order.bus_loc.loc.campus+order.bus_loc.loc.busboardloc,
+                        'ticket_checked': order.ticket_checked
+                    }
+                    ret_data['unchecked'].append(unchecked_order_dict)
+                total_order_dict = {
+                    'passenger_name': order.user.name,
+                    'gender': order.user.gender,
+                    'phone': order.user.phone,
+                    'boarding_loc': order.bus_loc.loc.school.name+order.bus_loc.loc.campus+order.bus_loc.loc.busboardloc,
+                    'ticket_checked': order.ticket_checked
+                }
+                ret_data['total'].append(total_order_dict)
+            return Response({'ret': 0, 'data': ret_data})
+
+        except Exception as e:
+            print(repr(e))
+            return Response({'ret': 424101, 'errmsg': '其他错误'})
+
+
+
 
 
 # ========================================= Depreceted ===========================================

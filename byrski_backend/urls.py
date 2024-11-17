@@ -32,7 +32,7 @@ urlpatterns = [
     path('python/get_user_basic_info', get_user_basic_info.as_view()),
     path('python/update_user_basic_info', update_user_basic_info.as_view()),
 
-        path('python/get_homepage', get_homepage.as_view()),
+    path('python/get_homepage', get_homepage.as_view()),
     # path('python/get_tickets_of_homepage_activity', get_tickets_of_homepage_activity.as_view()),
     path('python/get_all_skiresort', get_all_skiresort.as_view()),
     path('python/get_tickets_of_certain_skiresort', get_tickets_of_certain_skiresort.as_view()),
@@ -64,6 +64,12 @@ urlpatterns = [
     
     path('python/get_itinerary_qrcode', get_itinerary_qrcode.as_view()),
     path('python/verify_itinerary_qrcode', verify_itinerary_qrcode.as_view()),
+    path('python/set_busstop_go_finished', set_busstop_go_finished.as_view()),
+    path('python/set_bus_go_finished', set_bus_go_finished.as_view()),
+    path('python/set_bus_ski_finished', set_bus_ski_finished.as_view()),
+    path('python/set_bus_return_finished', set_bus_return_finished.as_view()),
+        path('python/get_ticket_unchecked_passenger_num', get_ticket_unchecked_passenger_num.as_view()),
+        path('python/get_ticket_unchecked_passenger_list', get_ticket_unchecked_passenger_list.as_view()),
     path('python/get_go_bus_boarding_passenger_num', get_go_bus_boarding_passenger_num.as_view()),
     path('python/get_go_bus_boarding_passenger_list', get_go_bus_boarding_passenger_list.as_view()),
     path('python/get_go_bus_boarding_total_passenger_list', get_go_bus_boarding_total_passenger_list.as_view()),

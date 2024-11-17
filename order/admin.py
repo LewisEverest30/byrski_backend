@@ -66,11 +66,11 @@ class ExportOrderExcelMixin(object):
 # ========================================Admin==================================================
 # 每次活动的具体的大巴车
 class Bus_boarding_timeInline(admin.TabularInline):
-    fields = ('bus', 'loc', 'boarding_peoplenum', 'time')
+    fields = ('bus', 'loc', 'boarding_peoplenum', 'time', 'go_finished')
     model = Bus_boarding_time
     extra = 0  # 默认显示 0 个 
     # todo 恢复
-    # readonly_fields = ('bus', 'loc', 'boarding_peoplenum',)
+    readonly_fields = ('bus', 'loc', 'boarding_peoplenum', 'go_finished')
 class LeaderItineraryInlineFormSet(BaseInlineFormSet):
     def clean(self):
         super().clean()
