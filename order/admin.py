@@ -70,7 +70,7 @@ class Bus_boarding_timeInline(admin.TabularInline):
     model = Bus_boarding_time
     extra = 0  # 默认显示 0 个 
     # todo 恢复
-    readonly_fields = ('bus', 'loc', 'boarding_peoplenum', 'go_finished')
+    # readonly_fields = ('bus', 'loc', 'boarding_peoplenum', 'go_finished')
 class LeaderItineraryInlineFormSet(BaseInlineFormSet):
     def clean(self):
         super().clean()

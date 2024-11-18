@@ -8,7 +8,7 @@ from rest_framework.views import APIView
 
 from .models import *
 from user.auth import MyJWTAuthentication
-from user.models import User, UserSerializerHomepage
+from user.models import User, UserSerializerHomepage, UserSerializerBasic
 
 
 # ==================================信息获取======================================
@@ -134,11 +134,20 @@ class get_certain_ticket(APIView):
 
     def post(self,request,*args,**kwargs):
         info = json.loads(request.body)
+        userid = request.user['userid']
+
         try:
             ticket_id = info['id']
             ticket = Ticket.objects.get(id=ticket_id)
-            serializer = TicketSerializer2(instance=ticket, many=False)
-            return Response({'ret': 0, 'data': serializer.data})
+            ticket_serializer = TicketSerializer2(instance=ticket, many=False)
+
+            user = User.objects.get(id=userid)
+            user_serializer = UserSerializerBasic(instance=user, many=False)
+
+            return Response({'ret': 0, 'data': {
+                'ticket': ticket_serializer.data,
+                'user': user_serializer.data
+            }})
         except Exception as e:
             print(repr(e))
             return Response({'ret': 410301, 'data': None})

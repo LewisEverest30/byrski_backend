@@ -140,9 +140,29 @@ class UserSerializerSki(serializers.ModelSerializer):
                   ]
 
 class UserSerializerBasic(serializers.ModelSerializer):
+    school = serializers.SerializerMethodField()
+    school_id = serializers.SerializerMethodField()
+
+    def get_school(self, obj):
+        # if obj.identity == 1:
+        #     leader = Leader.objects.get(user_id=obj.id)
+        #     return leader.school.name
+        if obj.school is None:
+            return None
+        else:
+            return obj.school.name
+
+    def get_school_id(self, obj):
+        # if obj.identity == 1:
+        #     leader = Leader.objects.get(user_id=obj.id)
+        #     return leader.school.id
+        if obj.school is None:
+            return None
+        else:
+            return obj.school.id
     class Meta:
         model = User
-        fields = ['id', 'name', 'gender', 'phone', 
+        fields = ['id', 'name', 'gender', 'phone', 'idnumber', 'school', 'school_id'
                   'height', 'weight', 'skiboots_size',  
                   'ski_board', 'ski_level', 'ski_favor'
                   ]
