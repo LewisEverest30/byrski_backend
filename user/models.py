@@ -162,7 +162,7 @@ class UserSerializerBasic(serializers.ModelSerializer):
             return obj.school.id
     class Meta:
         model = User
-        fields = ['id', 'name', 'gender', 'phone', 'idnumber', 'school', 'school_id'
+        fields = ['id', 'name', 'gender', 'phone', 'idnumber', 'school', 'school_id',
                   'height', 'weight', 'skiboots_size',  
                   'ski_board', 'ski_level', 'ski_favor'
                   ]

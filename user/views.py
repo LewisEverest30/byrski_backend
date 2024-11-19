@@ -144,6 +144,7 @@ class update_user_basic_info(APIView):
             name = info['name']
             gender = info['gender']   # 0男 1女
             phone = info['phone']
+            school_id = info['school_id']
             height = info['height']
             weight = info['weight']
             skiboots_size = info['skiboots_size']
@@ -152,7 +153,8 @@ class update_user_basic_info(APIView):
             ski_favor = info['ski_favor']   # 0基础 1刻滑 2平花 3公园 4野雪
 
 
-            user = User.objects.filter(id=userid).update(name=name, gender=gender, phone=phone, height=height, weight=weight,
+            user = User.objects.filter(id=userid).update(name=name, gender=gender, phone=phone, school_id=school_id,
+                                                         height=height, weight=weight,
                                                          skiboots_size=skiboots_size, ski_board=ski_board,
                                                          ski_level=ski_level, ski_favor=ski_favor)
             return Response({'ret': 0, 'errmsg': None})   

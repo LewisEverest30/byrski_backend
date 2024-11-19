@@ -1,5 +1,5 @@
 import json
-import datetime
+from datetime import datetime
 from django.conf import settings
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -126,7 +126,7 @@ class create_ticket_order(APIView):
                         
                         # 创建订单
                         # ordernumber = str(userid).zfill(6)+str(datetime.datetime.now())[2:20].replace(' ', '').replace('-', '').replace(':', '').replace('.', '')
-                        ordernumber = ('out_trade_no_'+str(datetime.datetime.now())).replace(' ', '').replace('-', '').replace(':', '').replace('.', '')[:32]
+                        ordernumber = ('out_trade_no_'+str(datetime.now())).replace(' ', '').replace('-', '').replace(':', '').replace('.', '')[:32]
                         
                         neworder = TicketOrder.objects.create(ordernumber=ordernumber , user_id=userid, ticket_id=ticket_id, 
                                                     bus_loc_id=bus_loc_id, wxgroup_id=wxgroup_choice.id,
