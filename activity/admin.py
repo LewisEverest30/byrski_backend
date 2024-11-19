@@ -2,6 +2,7 @@ from openpyxl import Workbook
 from django.contrib import admin
 from django.http import HttpResponse
 from django.utils.safestring import mark_safe
+from django.forms import BaseInlineFormSet, ValidationError
 
 from .models import *
 
@@ -53,9 +54,9 @@ class AreaAdmin(admin.ModelAdmin, ExportExcelMixin):
 
 # 可选上车点
 class BoardingLocTemplateAdmin(admin.ModelAdmin, ExportExcelMixin):
-    list_display = ("id", "campus", "busboardloc")
+    list_display = ("id", "school", "campus", "busboardloc")
     readonly_fields = ()
-    list_display_links = ['busboardloc']
+    list_display_links = ['id']
 
 
 # 雪场
@@ -81,23 +82,62 @@ class SkiresortAdmin(admin.ModelAdmin, ExportExcelMixin):
 
 # 活动模板
 class ActivityTemplateAdmin(admin.ModelAdmin, ExportExcelMixin):
-    list_display = ("id", "ski_resort", 'duration_days', )
+    list_display = ("id", "name", "ski_resort", 'duration_days', )
     actions = ['export_as_excel']
     list_filter = ("ski_resort", )
 
 
 # 活动-票-群-上车点
+class TicketInlineFormSet(BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        # 如果没有至少一个ticket，抛出错误
+        valid_form_num = 0
+        for form in self.forms:
+            if form.cleaned_data and not form.cleaned_data.get('DELETE', False):
+                valid_form_num += 1
+        if valid_form_num < 1:
+            raise ValidationError('每个活动至少需要1个雪票。')
 class TicketInline(admin.TabularInline):
-    fields = ('intro', 'service', 'price', 'original_price')
+    formset = TicketInlineFormSet
+    fields = ('intro', 'service', 'price', 'original_price', 'sales')
     model = Ticket
     extra = 0  # 默认显示 0 个 
     readonly_fields = ('sales',)
+class BoardinglocInlineFormSet(BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        # 如果没有至少一个ticket，抛出错误
+        valid_form_num = 0
+        for form in self.forms:
+            if form.cleaned_data and not form.cleaned_data.get('DELETE', False):
+                valid_form_num += 1
+        if valid_form_num < 1:
+            raise ValidationError('每个活动至少需要1个上车点。')
 class BoardinglocInline(admin.TabularInline):
-    fields = ('loc','target_peoplenum',)
+    formset = BoardinglocInlineFormSet
+    fields = ('loc','target_peoplenum', 'choice_peoplenum')
     model = Boardingloc
     extra = 0  # 默认显示 0 个 
     readonly_fields = ('choice_peoplenum',)
+class ActivityWxGroupInlineFormSet(BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        # 如果没有至少一个ticket，抛出错误
+        valid_form_num = 0
+        for form in self.forms:
+            if form.cleaned_data and not form.cleaned_data.get('DELETE', False):
+                valid_form_num += 1
+        if valid_form_num < 2:
+            raise ValidationError('每个活动至少需要2个微信群。')
 class ActivityWxGroupInline(admin.TabularInline):
+    formset = ActivityWxGroupInlineFormSet
     fields = ('qrcode','thumbnail',)
     model = ActivityWxGroup
     extra = 0  # 默认显示 0 个 
@@ -109,15 +149,37 @@ class ActivityWxGroupInline(admin.TabularInline):
             return mark_safe(f'<img src="{obj.qrcode.url}" height="80" />')
         else:
             return '-'
+class BustypeInlineFormSet(BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        valid_form_num = 0
+        for form in self.forms:
+            if form.cleaned_data and not form.cleaned_data.get('DELETE', False):
+                valid_form_num += 1
+        if valid_form_num != 2:
+            raise ValidationError('每个活动有2个类型的大巴车。')
+class BustypeInline(admin.TabularInline):
+    formset = BustypeInlineFormSet
+    fields = ('passenger_num','price',)
+    model = Bustype
+    extra = 0  # 默认显示 0 个 
+class AreaBoardingLowerLimitInline(admin.TabularInline):
+    fields = ('area','lower_limit')
+    model = AreaBoardingLowerLimit
+    extra = 0  # 默认显示 0 个 
 class ActivityAdmin(admin.ModelAdmin, ExportExcelMixin):
+    # form = ActivityForm
     list_display = ("id", "activity_template", 'activity_begin_date', 'signup_ddl_date',
-                     'lock_ddl_date', 'status', 'target_participant', 'current_participant')
+                     'lock_ddl_date', 'status', 'current_participant', 'success_departue')
     actions = ['export_as_excel']
 
     list_filter = ("activity_template", "status")
 
     readonly_fields = ('current_participant', )
-    inlines = [TicketInline, ActivityWxGroupInline, BoardinglocInline]
+    inlines = [TicketInline, ActivityWxGroupInline, BoardinglocInline, AreaBoardingLowerLimitInline,
+               BustypeInline,]
 
 
 # 上车点
@@ -142,6 +204,7 @@ admin.site.register(Skiresort, SkiresortAdmin)
 admin.site.register(ActivityTemplate, ActivityTemplateAdmin)
 admin.site.register(Activity, ActivityAdmin)
 admin.site.register(Boardingloc, BoardinglocAdmin)
+admin.site.register(School)
 
 
 

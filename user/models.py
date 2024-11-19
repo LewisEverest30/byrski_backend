@@ -4,12 +4,13 @@ from rest_framework import serializers
 from django.utils import timezone
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.core.validators import MinValueValidator, MaxValueValidator
 
-
+from activity.models import School
 
 
 class Accesstoken(models.Model):
-    access_token = models.CharField(max_length=1024, unique=True)
+    access_token = models.CharField(max_length=512)
     expire_time = models.DateTimeField()
 
 
@@ -43,7 +44,7 @@ class User(models.Model):
     openid = models.CharField(verbose_name='openid', max_length=28, unique=True, db_index=True)
 
     name = models.CharField(verbose_name='姓名', max_length=15, null=True, blank=True)
-    # school = models.CharField(verbose_name='学校', max_length=50, null=True, blank=True)
+    school = models.ForeignKey(verbose_name='学校', to=School, null=True, blank=True, on_delete=models.SET_NULL)
     # age = models.IntegerField(verbose_name='年龄', null=True, blank=True)
     phone = models.CharField(verbose_name='手机号', max_length=11, null=True, blank=True)
     # wxaccount = models.CharField(verbose_name='微信号', max_length=22)
@@ -51,6 +52,7 @@ class User(models.Model):
     profile = models.ImageField(verbose_name='头像', null=True, blank=True,
                             upload_to='user/profile/')
     points = models.IntegerField(verbose_name='积分', null=True, blank=True, default=0)
+    saved_money = models.DecimalField(verbose_name='节省金额', max_digits=8, decimal_places=2, default=0)
 
     identity = models.IntegerField(verbose_name='身份', null=False, blank=False, choices=Identity_choices.choices, default=0)
     intro = models.TextField(verbose_name='个人介绍', null=True, blank=True)
@@ -65,7 +67,8 @@ class User(models.Model):
     height = models.IntegerField(verbose_name='身高(cm)', null=True, blank=True)
     weight = models.IntegerField(verbose_name='体重(kg)', null=True, blank=True)
     foot_length = models.IntegerField(verbose_name='足长(mm)', null=True, blank=True)
-    skiboots_size = models.IntegerField(verbose_name='鞋码', null=True, blank=True)
+    skiboots_size = models.DecimalField(verbose_name='鞋码', null=True, blank=True, max_digits=3, decimal_places=1,
+                                        validators=[MinValueValidator(30), MaxValueValidator(50)])
     # skiboots_size_1 = models.IntegerField(verbose_name='单板雪鞋尺码', null=True, blank=True)
     # skiboots_size_2 = models.IntegerField(verbose_name='双板雪鞋尺码', null=True, blank=True)
     snowboard_size_1 = models.IntegerField(verbose_name='单板板长', null=True, blank=True)
@@ -87,9 +90,10 @@ class User(models.Model):
 class Leader(models.Model):
     user = models.ForeignKey(verbose_name='用户', to=User, on_delete=models.CASCADE)
     intro = models.TextField(verbose_name='领队介绍', null=True, blank=True)
-    phone = models.CharField(verbose_name='手机号', max_length=11, null=True, blank=True)
+    phone = models.CharField(verbose_name='手机号', max_length=11, null=False, blank=False)  # 领队手机号 不能为空！！！
     profile = models.ImageField(verbose_name='照片', null=True, blank=True,
                             upload_to='user/profile/')
+    school = models.ForeignKey(verbose_name='学校', to=School, null=True, blank=False, on_delete=models.SET_NULL)
     leadtimes = models.IntegerField(verbose_name='参与活动次数', default=0)
     
     is_active = models.BooleanField(verbose_name='是否激活', default=True, null=False, blank=False)
@@ -97,15 +101,31 @@ class Leader(models.Model):
     update_time = models.DateTimeField(verbose_name='修改时间', auto_now=True)
 
     def __str__(self) -> str:
-        return self.user.name
+        return f'{self.user.name} #{self.id}'
 
     class Meta:
         verbose_name = "领队"
         verbose_name_plural = "领队"
+# 创建领队时通过信号机制来设置User表的内容
+@receiver(post_save, sender=Leader)
+def set_user_subject(sender, instance, created, **kwargs):
+    if created:  # 如果是新创建的
+        instance.user.identity = 1
+        instance.user.phone = instance.phone
+        instance.user.profile = instance.profile
+        instance.user.intro = instance.intro
+        instance.user.school_id = instance.school_id
+        instance.user.save()
+    else:  # 如果是修改
+        instance.user.phone = instance.phone
+        instance.user.profile = instance.profile
+        instance.user.intro = instance.intro
+        instance.user.school_id = instance.school_id
+        instance.user.save()
 
 
 class UserSerializer(serializers.ModelSerializer):
-    school = serializers.CharField(source='school.school_name')
+    school = serializers.CharField(source='school.name')
     school_id = serializers.IntegerField(source='school.id')
     class Meta:
         model = User
@@ -120,41 +140,93 @@ class UserSerializerSki(serializers.ModelSerializer):
                   ]
 
 class UserSerializerBasic(serializers.ModelSerializer):
+    school = serializers.SerializerMethodField()
+    school_id = serializers.SerializerMethodField()
+
+    def get_school(self, obj):
+        # if obj.identity == 1:
+        #     leader = Leader.objects.get(user_id=obj.id)
+        #     return leader.school.name
+        if obj.school is None:
+            return None
+        else:
+            return obj.school.name
+
+    def get_school_id(self, obj):
+        # if obj.identity == 1:
+        #     leader = Leader.objects.get(user_id=obj.id)
+        #     return leader.school.id
+        if obj.school is None:
+            return None
+        else:
+            return obj.school.id
     class Meta:
         model = User
-        fields = ['id', 'name', 'gender', 'phone', 
-                  'height', 'weight', 'foot_length',  
+        fields = ['id', 'name', 'gender', 'phone', 'idnumber', 'school', 'school_id',
+                  'height', 'weight', 'skiboots_size',  
                   'ski_board', 'ski_level', 'ski_favor'
                   ]
 
+class UserSerializerHomepage(serializers.ModelSerializer):
+    school = serializers.SerializerMethodField()
+    register_days = serializers.SerializerMethodField()
+    leadtimes = serializers.SerializerMethodField()
+
+    def get_school(self, obj):
+        if obj.identity == 1:
+            leader = Leader.objects.get(user_id=obj.id)
+            return leader.school.name
+        if obj.school is None:
+            return None
+        else:
+            return obj.school.name
+    
+    def get_register_days(self, obj):
+        time_now = timezone.now()
+        time_regi = obj.create_time
+        return (time_now - time_regi).days
+
+    def get_leadtimes(self, obj):
+        if obj.identity == 1:
+            try:
+                leader = Leader.objects.get(user_id=obj.id)
+                return leader.leadtimes
+            except Exception as e:
+                print(repr(e))
+                return 0
+        else:
+            return None
+    
+    class Meta:
+        model = User
+        fields = ['id', 'name', 'school', 'identity', 'is_student',
+                  'register_days', 'saved_money', 'leadtimes',
+                  'intro']
 
 class LeaderSerializer(serializers.ModelSerializer):
     name = serializers.SerializerMethodField()
     phone = serializers.SerializerMethodField()
-    user_id = serializers.SerializerMethodField()
+    school = serializers.SerializerMethodField()
+    # user_id = serializers.SerializerMethodField()
 
     def get_name(self, obj):
         return obj.user.name
 
     def get_phone(self, obj):
-        return obj.user.name
+        return obj.phone
 
     def get_user_id(self, obj):
         return obj.user.id
 
+    def get_school(self, obj):
+        if obj.school is None:
+            return None
+        else:
+            return obj.school.name
+    
     class Meta:
         model = Leader
-        fields = ['id', 'user_id', 'name', 'phone', 'profile', 'intro']
-
-
-@receiver(post_save, sender=Leader)
-def set_user_subject(sender, instance, created, **kwargs):
-    if created:  # 如果是新创建的
-        instance.user.identity = 1
-        instance.user.phone = instance.phone
-        instance.user.profile = instance.profile
-        instance.user.intro = instance.intro
-        instance.user.save()
+        fields = ['id', 'name', 'phone', 'profile', 'intro', 'school']
 
 
 
@@ -166,7 +238,6 @@ class UserSerializerHome(serializers.ModelSerializer):
     def get_registration_time(self, obj):
         time_now = timezone.now()
         time_regi = obj.create_time
-        # todo
         return str((time_now - time_regi).days)
     
     

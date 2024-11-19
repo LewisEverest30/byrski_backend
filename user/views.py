@@ -11,7 +11,7 @@ from .auth import MyJWTAuthentication, create_token
 # from .utils import cal_snowboardsize
 
 
-
+TOKEN_EXPIRE_DAYS = 7
 class login(APIView):
     login_url_mod = 'https://api.weixin.qq.com/sns/jscode2session?appid={}&secret={}&js_code={}&grant_type=authorization_code'
 
@@ -27,18 +27,26 @@ class login(APIView):
             oid = login_json['openid']  # 获得的openid
         except Exception as e:
             print(repr(e))
-            return Response({'ret': 500001, 'errmsg': '微信登录接口调用失败', 'openid': None, 'token': None, 'is_student': None, 'identity': None})
+            return Response({'ret': 500001, 'errmsg': '微信登录接口调用失败', 'openid': None, 'token': None, 
+                             'is_student': None, 'identity': None,
+                             'name': None, 'token_expire': None})
 
         user_found = User.objects.filter(openid=oid)  # users表中是否已有该用户
         if user_found.count() == 0:  # 没有该用户，尝试创建一条数据，并返回id
             newuser = User.objects.create(openid=oid)
-            token = create_token(newuser)
-            return Response({'ret': 0, 'errmsg': None, 'openid': oid, 'token': str(token), 'is_student': newuser.is_student, 'identity': newuser.identity})
+            token_expire_time = timezone.now()+datetime.timedelta(days=TOKEN_EXPIRE_DAYS)
+            token = create_token(newuser, expdays=TOKEN_EXPIRE_DAYS)
+            return Response({'ret': 0, 'errmsg': None, 'openid': oid, 'token': str(token), 
+                             'is_student': newuser.is_student, 'identity': newuser.identity,
+                             'name': newuser.name, 'token_expire': token_expire_time})
         else:  # 已有该用户
             # 登录模式
+            token_expire_time = timezone.now()+datetime.timedelta(days=TOKEN_EXPIRE_DAYS)
             token = create_token(user_found[0])
             # print(token)
-            return Response({'ret': 0, 'errmsg': None, 'openid': oid, 'token': str(token), 'is_student': user_found[0].is_student, 'identity': user_found[0].identity})
+            return Response({'ret': 0, 'errmsg': None, 'openid': oid, 'token': str(token), 
+                             'is_student': user_found[0].is_student, 'identity': user_found[0].identity,
+                             'name': user_found[0].name, 'token_expire': token_expire_time})
 
 
 class check_student(APIView):
@@ -60,7 +68,7 @@ class check_student(APIView):
             at_obj = Accesstoken.objects.create(access_token=newtoken, expire_time=datetime.datetime.now()+datetime.timedelta(seconds=exp_in))
             # return Response({'ret':0, 'acesstoken':model_to_dict(newat)})
                 
-        if at_obj.expire_time.replace(tzinfo=None) <= datetime.datetime.utcnow():
+        if at_obj.expire_time <= timezone.now():
             # access token 过期了
             response = requests.get(self.getaccesstoken_url)  # 向腾讯服务器发送请求
             jsrespon = response.json()
@@ -82,21 +90,23 @@ class check_student(APIView):
             'openid': openid,
             'wx_studentcheck_code': code
         }
-        stu_response = requests.post(self.checkstudent_url_mod.format(wx_access_token), data=post_data)
+        stu_response = requests.post(self.checkstudent_url_mod.format(wx_access_token), json=post_data)
         jsstu_response = stu_response.json()
 
         errcode = jsstu_response['errcode']
         if errcode != 0:
             # 接口调用失败
             errmsg = jsstu_response['errmsg']
-            return Response({'ret': 500101, 'errmsg': errmsg, 'bind_status': None, 'is_student': None})
+            wxerrcode = jsstu_response['errcode']
+            return Response({'ret': 500101, 'errmsg': errmsg, 'wxerrcode':wxerrcode, 'bind_status': None, 'is_student': None})
 
         try:
             bind_status = jsstu_response['bind_status']
             is_student = jsstu_response['is_student']
+            wxerrcode = jsstu_response['errcode']
         except Exception as e:
             print(repr(e))
-            return Response({'ret': 500102, 'errmsg': 'wx响应中无学生认证信息', 'bind_status': None, 'is_student': None})
+            return Response({'ret': 500102, 'errmsg': 'wx响应中无学生认证信息', 'wxerrcode':wxerrcode, 'bind_status': None, 'is_student': None})
         
         # 更新该用户学生信息
         userid = request.user['userid']
@@ -104,11 +114,11 @@ class check_student(APIView):
             user = User.objects.get(id=userid)
         except Exception as e:
             print(repr(e))
-            return Response({'ret': 400101, 'errmsg': '查找该用户失败', 'bind_status': bind_status, 'is_student': is_student})
+            return Response({'ret': 400101, 'errmsg': '查找该用户失败', 'wxerrcode':None, 'bind_status': bind_status, 'is_student': is_student})
         
         user.is_student = is_student
         user.save()
-        return Response({'ret': 0, 'errmsg': None, 'bind_status': bind_status, 'is_student': is_student})   
+        return Response({'ret': 0, 'errmsg': None, 'wxerrcode':None, 'bind_status': bind_status, 'is_student': is_student})   
 
 
 class get_user_basic_info(APIView):
@@ -118,11 +128,11 @@ class get_user_basic_info(APIView):
 
         try:
             user = User.objects.get(id=userid)
+            serializer = UserSerializerBasic(instance=user, many=False)
+            return Response({'ret': 0, 'data': serializer.data})
         except Exception as e:
             print(repr(e))
             return Response({'ret': 400201, 'data': None})
-        serializer = UserSerializerBasic(instance=user, many=False)
-        return Response({'ret': 0, 'data': serializer.data})
 
 
 class update_user_basic_info(APIView):
@@ -134,16 +144,18 @@ class update_user_basic_info(APIView):
             name = info['name']
             gender = info['gender']   # 0男 1女
             phone = info['phone']
+            school_id = info['school_id']
             height = info['height']
             weight = info['weight']
-            foot_length = info['foot_length']
+            skiboots_size = info['skiboots_size']
             ski_board = info['ski_board']   # 0单 1双
             ski_level = info['ski_level']   # 0小白 1新手 2走刃 3大佬
             ski_favor = info['ski_favor']   # 0基础 1刻滑 2平花 3公园 4野雪
 
 
-            user = User.objects.filter(id=userid).update(name=name, gender=gender, phone=phone, height=height, weight=weight,
-                                                         foot_length=foot_length, ski_board=ski_board,
+            user = User.objects.filter(id=userid).update(name=name, gender=gender, phone=phone, school_id=school_id,
+                                                         height=height, weight=weight,
+                                                         skiboots_size=skiboots_size, ski_board=ski_board,
                                                          ski_level=ski_level, ski_favor=ski_favor)
             return Response({'ret': 0, 'errmsg': None})   
         except Exception as e:
@@ -153,6 +165,7 @@ class update_user_basic_info(APIView):
 
 # --------------------------------下面的初版先不用-------------------------------------------
 
+'''
 class get_user_ski_info(APIView):
     authentication_classes = [MyJWTAuthentication, ]
     def get(self,request,*args,**kwargs):
@@ -175,7 +188,7 @@ class update_user_ski_info(APIView):
         try:
             height = info['height']
             weight = info['weight']
-            foot_length = info['foot_length']
+            skiboots_size = info['skiboots_size']
             skiboots_size = info['skiboots_size']
             snowboard_size_1 = info['snowboard_size_1']
             snowboard_size_2 = info['snowboard_size_2']
@@ -183,7 +196,7 @@ class update_user_ski_info(APIView):
             skipole_size = info['skipole_size'] 
 
             User.objects.filter(id=userid).update(height=height, weight=weight,
-                                                         foot_length=foot_length, skiboots_size=skiboots_size,
+                                                         skiboots_size=skiboots_size, skiboots_size=skiboots_size,
                                                          snowboard_size_1=snowboard_size_1,
                                                          snowboard_size_2=snowboard_size_2,
                                                          snowboard_hardness=snowboard_hardness,
@@ -193,6 +206,7 @@ class update_user_ski_info(APIView):
             print(repr(e))
             return Response({'ret': 400501})
 
+'''
 
 
 # 雪板长度数据

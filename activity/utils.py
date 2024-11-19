@@ -3,33 +3,43 @@ from django.conf import settings
 
 
 
-# ===================能提供的服务==============================
+# ====================常量==============================
 SERVICES = {
     '滑雪门票': {
         'service': '滑雪门票',
-        'icon': settings.MEDIA_URL + ''
+        'icon': settings.MEDIA_URL + 'icon/icon3.png'
     },
     '往返车票': {
         'service': '往返车票',
-        'icon': settings.MEDIA_URL + ''
+        'icon': settings.MEDIA_URL + 'icon/icon4.png'
     },
     '酒店住宿': {
         'service': '酒店住宿',
-        'icon': settings.MEDIA_URL + ''
+        'icon': settings.MEDIA_URL + 'icon/icon5.png'
     },
     '雪具租赁': {
         'service': '雪具租赁',
-        'icon': settings.MEDIA_URL + ''
+        'icon': settings.MEDIA_URL + 'icon/icon1.png'
     },
     '人身保险': {
         'service': '人身保险',
-        'icon': settings.MEDIA_URL + ''
+        'icon': settings.MEDIA_URL + 'icon/icon2.png'
     },
 }
 
 SERVICE_NAMES = [i['service'] for i in list(SERVICES.values())]
 SERVICE_STRING_RE = '|'.join(SERVICE_NAMES)
 SERVICE_STRING_SHOW = ' '.join(SERVICE_NAMES)
+
+
+ACTIVITY_GUIDE = {
+    0: '未使用活动指引',
+    1: '前往大厅租赁区领取雪具',
+    2: '在存储柜存放行李，穿戴雪具',
+    3: '刷卡过闸机进入雪场',
+    4: '新手指南：安全摔倒与站起',
+    5: '结束滑雪归还雪卡和装备',
+}
 
 # ============================================================
 

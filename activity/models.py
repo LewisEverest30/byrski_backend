@@ -4,6 +4,7 @@ from django.utils.translation import gettext_lazy as _
 from django.core.validators import MinValueValidator
 from django.conf import settings
 from django.db.models import Min
+from django.core.exceptions import ValidationError
 
 from .utils import SERVICES
 from .utils import Validator_slope, Validator_schedule, SERVICE_STRING_SHOW, Validator_service
@@ -13,6 +14,7 @@ from .utils import Validator_slope, Validator_schedule, SERVICE_STRING_SHOW, Val
 # 上车点区域范围
 class Area(models.Model):
     area_name = models.CharField('地区名称', max_length=100, unique=True)
+    city_name = models.CharField('所属城市名称', max_length=100, null=False, blank=False)
 
     def __str__(self) -> str:
         return self.area_name
@@ -21,26 +23,35 @@ class Area(models.Model):
         verbose_name = "区域"
         verbose_name_plural = "区域"
 
+# 合作院校
+class School(models.Model):
+    name = models.CharField('学校名称', max_length=100, unique=True)
+    def __str__(self) -> str:
+        return self.name
+    class Meta:
+        verbose_name = "合作院校"
+        verbose_name_plural = "合作院校"
 
 # 上车点可选范围 
 class BoardingLocTemplate(models.Model):
-    school_name = models.CharField(verbose_name='学校名称', max_length=50)
+    school = models.ForeignKey(verbose_name='学校名称', to=School, on_delete=models.PROTECT)
 
-    campus = models.CharField(verbose_name='学校位置(学校名+校区)', max_length=150, unique=True)
-    busboardloc  =  models.CharField(verbose_name='上车点(学校名+校区+门)', max_length=150, null=True)
+    campus = models.CharField(verbose_name='校区', max_length=150)
+    busboardloc  =  models.CharField(verbose_name='上车点(如：北门)', max_length=150)
     area = models.ForeignKey(verbose_name='所在地区', to=Area, on_delete=models.CASCADE)
 
     def __str__(self) -> str:
-        return self.campus
+        return self.school.name + self.campus + self.busboardloc
 
     class Meta:
         verbose_name = "上车点可选范围"
         verbose_name_plural = "上车点可选范围"
-
+        unique_together = (("school", "campus", "busboardloc", ),)
 
 # 雪场
 class Skiresort(models.Model):
     name = models.CharField(verbose_name='滑雪场名', max_length=50, null=False, blank=False)
+    area = models.ForeignKey(verbose_name='所在地区', to=Area, on_delete=models.CASCADE, null=False, blank=False)
     location = models.CharField(verbose_name='位置', max_length=300, null=False, blank=False)
     opening = models.CharField(verbose_name='营业时间', max_length=200, null=False, blank=False)
     phone = models.CharField(verbose_name='电话', max_length=11, null=False, blank=False)
@@ -81,12 +92,13 @@ class SkiresortPic(models.Model):
 # 活动类别模板
 class ActivityTemplate(models.Model):
     ski_resort = models.ForeignKey(verbose_name='滑雪场', to=Skiresort, on_delete=models.PROTECT)
-    name = models.CharField(verbose_name='活动名称', max_length=20, null=True, blank=False, help_text='示例：“翠云山银河滑雪场两日票” (雪场+天数， 20字以内)')
+    name = models.CharField(verbose_name='活动票名', max_length=12, null=True, blank=False, help_text='示例：“金山岭两日住滑票” (12字以内)')
     duration_days = models.IntegerField(verbose_name='持续天数')
     detail = models.TextField(verbose_name='活动详情', null=True, blank=False)
     schedule = models.TextField(verbose_name='行程安排(详细说明)', null=True, blank=False)
     attention = models.TextField(verbose_name='注意事项', null=True, blank=True)
     notes = models.TextField(verbose_name='备注', null=True, blank=True)
+    leader_notice = models.TextField(verbose_name='领队须知', null=True, blank=False)
 
     schedule_lite = models.CharField(verbose_name='行程安排文字简述 (该字段暂时弃用)', max_length=300, null=True, blank=True,
                                 validators=[Validator_schedule, ],
@@ -97,7 +109,7 @@ class ActivityTemplate(models.Model):
 
     def __str__(self) -> str:
         # return str(self.id)+'_'+self.ski_resort.name
-        return f'{self.ski_resort.name}-{self.duration_days}天-#{self.id}'
+        return f'{self.name}-{self.ski_resort.name}-{self.duration_days}天-ID#{self.id}'
 
     class Meta:
         verbose_name = "活动模板"
@@ -114,20 +126,44 @@ class Activity(models.Model):
     activity_template = models.ForeignKey(verbose_name='对应活动模板', to=ActivityTemplate, on_delete=models.PROTECT)
     activity_begin_date = models.DateField(verbose_name='活动开始日期(活动第一天)', null=False, blank=False)
     activity_end_date = models.DateField(verbose_name='活动结束日期(活动最后一天)', null=False, blank=False)
+    # 返程时间、地点
+    activity_return_time = models.TimeField(verbose_name='返程集合时间', null=True, blank=False)
+    activity_return_loc = models.CharField(verbose_name='返程集合位置', max_length=70, null=True, blank=False)
 
     signup_ddl_date = models.DateField(verbose_name='截止报名日期(当天23:59截止报名)', null=False, blank=False)
     lock_ddl_date = models.DateField(verbose_name='锁票日期(当天23:59锁票)', null=False, blank=False)
     status = models.IntegerField(verbose_name='活动状态', choices=Status_choices.choices, default=0)
+    success_departue = models.BooleanField(verbose_name='是否成功运行分车系统', default=False)
 
-    target_participant = models.IntegerField(verbose_name='目标报名人数', null=False, blank=False)
+    target_participant = models.IntegerField(verbose_name='报名人数上限', null=True, blank=False, default=9999)
     current_participant = models.IntegerField(verbose_name='当前报名人数', default=0)
 
     create_time = models.DateTimeField(verbose_name='创建时间', auto_now_add=True) 
     update_time = models.DateTimeField(verbose_name='修改时间', auto_now=True)
 
     def __str__(self) -> str:
-        return f'{self.activity_template} - {self.activity_begin_date} - #{self.id}'
+        return f'T({self.activity_template})T - {self.activity_begin_date} - ID#{self.id}'
 
+    # def save(self, *args, **kwargs):
+    #     if not self.ticket_set.exists():
+    #         raise ValidationError("每个活动必须至少有一个票")
+    #     if not self.boardingloc_set.exists():
+    #         raise ValidationError("每个活动必须至少有一个上车点")
+    #     if not self.activitywxgroup_set.exists():
+    #         raise ValidationError("每个活动必须至少有一个微信群")
+    #     super().save(*args, **kwargs)
+    
+    # def clean(self):
+    #     # cleaned_data = super().clean()
+    #     # activity = self.instance
+    #     super().clean()
+    #     if self.ticket_set.count() == 0:
+    #         raise ValidationError("每个活动必须至少有一个票")
+    #     if self.boardingloc_set.count() == 0:
+    #         raise ValidationError("每个活动必须至少有一个上车点")
+    #     if self.activitywxgroup_set.count() == 0:
+    #         raise ValidationError("每个活动必须至少有一个微信群")
+    
     class Meta:
         verbose_name = "活动"
         verbose_name_plural = "活动"
@@ -147,7 +183,16 @@ class Boardingloc(models.Model):
         verbose_name = "上车点"
         verbose_name_plural = "上车点"
         unique_together = (("activity", "loc"),)
-
+# 区域内所有上车点总下限
+class AreaBoardingLowerLimit(models.Model):
+    activity = models.ForeignKey(verbose_name='活动', to=Activity, on_delete=models.PROTECT)
+    area = models.ForeignKey(verbose_name='所在地区', to=Area, on_delete=models.CASCADE, null=True, blank=False)
+    lower_limit = models.IntegerField(verbose_name='下限人数', null=False, blank=False)
+    def __str__(self) -> str:
+        return f'活动(#{self.activity.id})-地区({self.area.area_name})-#{self.id}'
+    class Meta:
+        verbose_name = "区域上车下限"
+        verbose_name_plural = "区域上车下限"
 
 # 活动微信群
 class ActivityWxGroup(models.Model):
@@ -162,9 +207,22 @@ class ActivityWxGroup(models.Model):
         return f'{self.activity}'
 
     class Meta:
-        verbose_name = "活动"
-        verbose_name_plural = "活动"
+        verbose_name = "微信群二维码"
+        verbose_name_plural = "微信群二维码"
 
+# 大巴类型
+class Bustype(models.Model):
+    activity = models.ForeignKey(verbose_name='活动', to=Activity, on_delete=models.PROTECT)
+    passenger_num = models.IntegerField(verbose_name='可承载人数', validators=[MinValueValidator(1),])
+    price = models.DecimalField(verbose_name='单价', null=False, blank=False, max_digits=7, decimal_places=2,
+                                validators=[MinValueValidator(1),])    
+
+    def __str__(self) -> str:
+        return '可承载'+str(self.passenger_num)+'人'
+    
+    class Meta:
+        verbose_name = "大巴车类型(只支持两种类型)"
+        verbose_name_plural = "大巴车类型(只支持两种类型)"
 
 # 雪票
 class Ticket(models.Model):
@@ -185,17 +243,12 @@ class Ticket(models.Model):
     update_time = models.DateTimeField(verbose_name='修改时间', auto_now=True, null=True)
 
     def __str__(self) -> str:
-        return str(self.id)+'_'+str(self.activity)
-
+        return f'A{self.activity}A -- #{self.id}'
+    
     class Meta:
         verbose_name = "票"
         verbose_name_plural = "票"
 
-
-
-
-
-# =======================================================================================
 
 
 
@@ -209,7 +262,8 @@ class SkiresortSerializer1(serializers.ModelSerializer):
         tickets_min_price = Ticket.objects.filter(activity__activity_template__ski_resort__id=obj.id).aggregate(Min('price'))
         try:
             return tickets_min_price['price__min']
-        except:
+        except Exception as e:
+            print(repr(e))
             return None
 
     class Meta:
@@ -301,6 +355,7 @@ class TicketSerializer2(serializers.ModelSerializer):
     name = serializers.SerializerMethodField()
     begin_end = serializers.SerializerMethodField()
     service = serializers.SerializerMethodField()
+    cover = serializers.SerializerMethodField()
 
     def get_ticket_id(self, obj):
         return obj.id
@@ -332,32 +387,54 @@ class TicketSerializer2(serializers.ModelSerializer):
         service_dict = [SERVICES[s] for s in services]
         return service_dict
 
+    def get_cover(self, obj):
+        return settings.MEDIA_URL + str(obj.activity.activity_template.ski_resort.cover)
+
 
     class Meta:
         model = Ticket
-        fields = ['ticket_id', 'activity_id', 'activitytemplate_id', 'name', 'service', 'begin_end', 'price', 'original_price']
+        fields = ['ticket_id', 'activity_id', 'activitytemplate_id', 'name', 'service', 'cover', 'begin_end', 'price', 'original_price']
 
 
 # 用于获取模板详情
 class ActivityTemplateSerializer(serializers.ModelSerializer):
-    # ski_resort_id = serializers.IntegerField(source='ski_resort.id')
-    # ski_resort = serializers.CharField(source='ski_resort.name')
-    # ski_resort_loc = serializers.CharField(source='ski_resort.location')
     class Meta:
         model = ActivityTemplate
         fields = ['name', 'detail', 'schedule', 'attention']
 
 
+class BoardinglocSerializer(serializers.ModelSerializer):
+    area = serializers.CharField(source='loc.area.area_name')
+    # loc = serializers.CharField(source='loc.busboardloc')
+    loc = serializers.SerializerMethodField()
 
-
-class BoardingLocTemplateSerializer(serializers.ModelSerializer):
-    area = serializers.CharField(source='area.area_name')
-    area_id = serializers.IntegerField(source='area.id')
+    def get_loc(self, obj):
+        return obj.loc.school.name + obj.loc.campus + obj.loc.busboardloc
+    
     class Meta:
-        model = BoardingLocTemplate
-        fields = '__all__'
+        model = Boardingloc
+        fields = ['id', 'area', 'loc', 'choice_peoplenum', 'target_peoplenum']
+
+class BoardinglocSerializer2(serializers.ModelSerializer):
+    area = serializers.CharField(source='loc.area.area_name')
+    # loc = serializers.CharField(source='loc.busboardloc')
+    loc = serializers.SerializerMethodField()
+
+    def get_loc(self, obj):
+        return {
+            'school': obj.loc.school.name,
+            'campus': obj.loc.campus,
+            'busboardloc': obj.loc.busboardloc
+        }
+    
+    class Meta:
+        model = Boardingloc
+        fields = ['id', 'area', 'loc', 'choice_peoplenum', 'target_peoplenum']
+
+# ======================================================================================
 
 
+'''
 
 class ActivitySerializer(serializers.ModelSerializer):
     ski_resort_id = serializers.IntegerField(source='ski_resort.id')
@@ -367,16 +444,7 @@ class ActivitySerializer(serializers.ModelSerializer):
         model = Activity
         fields = '__all__'
 
-
-class BoardinglocSerializer(serializers.ModelSerializer):
-    loc = serializers.CharField(source='loc.busboardloc')
-    loc_id = serializers.IntegerField(source='loc.id')
-    class Meta:
-        model = Boardingloc
-        fields = '__all__'
-
-# ======================================================================================
-
+'''
 
 
 # ⬇️雪具租赁相关表

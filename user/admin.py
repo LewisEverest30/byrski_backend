@@ -45,6 +45,7 @@ class LeaderAdmin(admin.ModelAdmin, ExportExcelMixin):
 
     list_display_links = ['user_name']
     list_filter = ()
+    # todo 修复search
     search_fields = ("name", "phone")
     actions = ['export_as_excel']
 
