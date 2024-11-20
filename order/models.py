@@ -11,7 +11,7 @@ from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 
 from user.models import User, Leader, LeaderSerializer
-from activity.models import Ticket, ActivityWxGroup, Activity, Boardingloc
+from activity.models import Ticket, ActivityWxGroup, Activity, Boardingloc, Rentprice
 from activity.utils import ACTIVITY_GUIDE
 
 WXGROUP_MAX_NUM = 180
@@ -104,6 +104,8 @@ class TicketOrder(models.Model):
     pay_time = models.DateTimeField(verbose_name='付款时间', null=True)
     status = models.IntegerField(verbose_name='订单状态', null=False, default=1, choices=Status_choices.choices)
 
+    cost_ticket = models.DecimalField(verbose_name='购票费用', null=False, blank=False, max_digits=7, decimal_places=2, default=0,)
+    cost_rent = models.DecimalField(verbose_name='租赁费用', null=False, blank=False, max_digits=7, decimal_places=2, default=0,)
     def __str__(self) -> str:
         return self.ordernumber
     
@@ -147,6 +149,23 @@ class TicketOrder(models.Model):
             today = timezone.now().date()
             cls.objects.select_for_update().filter(ticket__activity__activity_end_date__lt=today).update(return_boarded=True)
 
+
+class Rentorder(models.Model):
+    user = models.ForeignKey(verbose_name='用户', to=User, on_delete=models.CASCADE, null=False, blank=False)
+    order = models.ForeignKey(verbose_name='对应活动订单', to=TicketOrder, on_delete=models.CASCADE, null=False, blank=False)
+
+    rent_item = models.ForeignKey(verbose_name='租赁项目', to=Rentprice, on_delete=models.PROTECT, null=False, blank=False)
+
+    rent_days = models.IntegerField(verbose_name='租赁天数', null=False, blank=False, validators=[MinValueValidator(1)])
+    # cost = models.DecimalField(verbose_name='实付款', null=False, blank=False, max_digits=7, decimal_places=2,
+    #                             validators=[MinValueValidator(1)])    
+
+    # status 直接取order的status
+    # is_active = models.BooleanField(verbose_name='是否有效(活动订单是否付款)', default=False)
+
+    class Meta:
+        verbose_name = "租赁单"
+        verbose_name_plural = "租赁单"
 
 
 # 领队行程
@@ -456,6 +475,18 @@ class BusSerializer(serializers.ModelSerializer):
 
 
 # ===================================订单相关====================================
+# 用于获取雪具租赁单信息
+class RentorderSerializer(serializers.ModelSerializer):
+    rent_order_item_id = serializers.IntegerField(source='id')
+
+    name = serializers.CharField(source='rent_item.name')
+    price = serializers.CharField(source='rent_item.price')
+    deposit = serializers.CharField(source='rent_item.deposit')
+    
+    class Meta:
+        model = Rentorder
+        fields = ['rent_order_item_id', 'name', 'price', 'deposit', 'rent_days']
+
 # 用于订单列表
 class OrderSerializer3(serializers.ModelSerializer):
     activity_name = serializers.CharField(source='ticket.activity.activity_template.name')
@@ -496,6 +527,19 @@ class OrderSerializer4(serializers.ModelSerializer):
 
     status = serializers.SerializerMethodField()
     can_refund = serializers.SerializerMethodField()
+
+    rent_order = serializers.SerializerMethodField()
+    def get_rent_order(self, obj):
+        rent_order_item = Rentorder.objects.filter(order_id=obj.id)
+        if rent_order_item.count() > 0:
+            rent_order_item_serializer = RentorderSerializer(instance=rent_order_item, many=True)
+            return {
+                'rent_order_item': list(rent_order_item_serializer.data),
+                'total_price': rent_order_item.aggregate(Sum('rent_item__price'))['rent_item__price__sum'],
+                'total_deposit': rent_order_item.aggregate(Sum('rent_item__deposit'))['rent_item__deposit__sum']
+            }
+        else:
+            return None
 
     def get_status(self, obj):
         if obj.status == 3 and obj.return_boarded == True:  # 已完成=已锁票+返程已上车
@@ -547,7 +591,7 @@ class OrderSerializer4(serializers.ModelSerializer):
         fields = ['id', 'status', 'pay_ddl', 'activity_name', 'begin_date', 'intro', 
                   'cover', 'original_price', 'cost', 'status','can_refund',
                 #   'status_description',
-                  'name', 'gender', 'phone', 'idnumber', 
+                  'name', 'gender', 'phone', 'idnumber', 'cost_rent', 'rent_order',
                   'ordernumber', 'create_time', 'pay_time', 'ticket_id']
 
 

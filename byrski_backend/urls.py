@@ -55,7 +55,7 @@ urlpatterns = [
     path('python/set_activity_guide_finished', set_activity_guide_finished.as_view()),
 
     path('python/get_ticket_order_list_by_type', get_ticket_order_list_by_type.as_view()),
-    path('python/get_detail_of_certain_ticket_order', get_detail_of_certain_ticket_order.as_view()),
+        path('python/get_detail_of_certain_ticket_order', get_detail_of_certain_ticket_order.as_view()),
     path('python/cancel_ticket_order', cancel_ticket_order.as_view()),
     path('python/delete_ticket_order', delete_ticket_order.as_view()),
 
@@ -68,8 +68,8 @@ urlpatterns = [
     path('python/set_bus_go_finished', set_bus_go_finished.as_view()),
     path('python/set_bus_ski_finished', set_bus_ski_finished.as_view()),
     path('python/set_bus_return_finished', set_bus_return_finished.as_view()),
-        path('python/get_ticket_unchecked_passenger_num', get_ticket_unchecked_passenger_num.as_view()),
-        path('python/get_ticket_unchecked_passenger_list', get_ticket_unchecked_passenger_list.as_view()),
+    path('python/get_ticket_unchecked_passenger_num', get_ticket_unchecked_passenger_num.as_view()),
+    path('python/get_ticket_unchecked_passenger_list', get_ticket_unchecked_passenger_list.as_view()),
     path('python/get_go_bus_boarding_passenger_num', get_go_bus_boarding_passenger_num.as_view()),
     path('python/get_go_bus_boarding_passenger_list', get_go_bus_boarding_passenger_list.as_view()),
     path('python/get_go_bus_boarding_total_passenger_list', get_go_bus_boarding_total_passenger_list.as_view()),

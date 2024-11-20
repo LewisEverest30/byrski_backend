@@ -67,6 +67,7 @@ class create_ticket_order(APIView):
         try:
             ticket_id = info['ticket_id']
             bus_loc_id = info['boardingloc_id']
+            rent_item_ids = info['rent_item_id']
 
             # 录入用户数据
             user.name = info['name']
@@ -130,7 +131,7 @@ class create_ticket_order(APIView):
                         
                         neworder = TicketOrder.objects.create(ordernumber=ordernumber , user_id=userid, ticket_id=ticket_id, 
                                                     bus_loc_id=bus_loc_id, wxgroup_id=wxgroup_choice.id,
-                                                    cost=ticket.price)
+                                                    cost=ticket.price, cost_ticket=ticket.price,)
                         
                         # 上车点人数+1
                         Boardingloc.objects.filter(id=bus_loc_id).update(choice_peoplenum=F('choice_peoplenum')+1)
@@ -142,6 +143,27 @@ class create_ticket_order(APIView):
                         User.objects.filter(id=userid).update(points=F('points')+USER_POINTS_INCREASE_DELTA)
                         # 用户节省金额+差价
                         User.objects.filter(id=userid).update(saved_money=F('saved_money')+(ticket.original_price - ticket.price))
+                        
+                        # 创建租赁单
+                        try:
+                            total_rent_cost = 0
+                            for rent_item_id in rent_item_ids:
+                                new_rent_order = Rentorder.objects.create(user_id=userid, order_id=neworder.id, rent_item_id=rent_item_id, rent_days=activity.activity_template.duration_days)
+                                total_rent_cost += new_rent_order.rent_item.price
+                                # todo 后续收押金一并计算
+                            neworder.cost_rent = total_rent_cost
+                            neworder.cost += total_rent_cost
+                            neworder.save()
+                        except Exception as e:
+                            print(repr(e))
+                            return Response({'ret': 420012, 'errmsg': '租赁单创建失败, 请检查提交的租赁项是否合法', 
+                                            'data': {
+                                                'order_id':neworder.id, 
+                                                'ordernumber':ordernumber, 
+                                                'ip': ip
+                                            },
+                                            })
+
                         return Response({'ret': 0, 'errmsg': None, 
                                         'data': {
                                             'order_id':neworder.id, 

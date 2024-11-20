@@ -63,7 +63,7 @@ class BoardingLocTemplateAdmin(admin.ModelAdmin, ExportExcelMixin):
 class SkiresortPicInline(admin.TabularInline):
     fields = ('pic','thumbnail',)
     model = SkiresortPic
-    extra = 0  # 默认显示 0 个 
+    extra = 0   
     
     readonly_fields = ('thumbnail',)
     @admin.display(description="缩略图")
@@ -104,7 +104,7 @@ class TicketInline(admin.TabularInline):
     formset = TicketInlineFormSet
     fields = ('intro', 'service', 'price', 'original_price', 'sales')
     model = Ticket
-    extra = 0  # 默认显示 0 个 
+    extra = 0   
     readonly_fields = ('sales',)
 class BoardinglocInlineFormSet(BaseInlineFormSet):
     def clean(self):
@@ -122,7 +122,7 @@ class BoardinglocInline(admin.TabularInline):
     formset = BoardinglocInlineFormSet
     fields = ('loc','target_peoplenum', 'choice_peoplenum')
     model = Boardingloc
-    extra = 0  # 默认显示 0 个 
+    extra = 0   
     readonly_fields = ('choice_peoplenum',)
 class ActivityWxGroupInlineFormSet(BaseInlineFormSet):
     def clean(self):
@@ -140,7 +140,7 @@ class ActivityWxGroupInline(admin.TabularInline):
     formset = ActivityWxGroupInlineFormSet
     fields = ('qrcode','thumbnail',)
     model = ActivityWxGroup
-    extra = 0  # 默认显示 0 个 
+    extra = 0   
     readonly_fields = ('thumbnail',)
     
     @admin.display(description="缩略图")
@@ -164,10 +164,14 @@ class BustypeInline(admin.TabularInline):
     formset = BustypeInlineFormSet
     fields = ('passenger_num','price',)
     model = Bustype
-    extra = 0  # 默认显示 0 个 
+    extra = 0   
 class AreaBoardingLowerLimitInline(admin.TabularInline):
     fields = ('area','lower_limit')
     model = AreaBoardingLowerLimit
+    extra = 0   
+class RentpriceInline(admin.TabularInline):
+    fields = ('name','price', 'deposit')
+    model = Rentprice
     extra = 0  # 默认显示 0 个 
 class ActivityAdmin(admin.ModelAdmin, ExportExcelMixin):
     # form = ActivityForm
@@ -178,8 +182,14 @@ class ActivityAdmin(admin.ModelAdmin, ExportExcelMixin):
     list_filter = ("activity_template", "status")
 
     readonly_fields = ('current_participant', )
-    inlines = [TicketInline, ActivityWxGroupInline, BoardinglocInline, AreaBoardingLowerLimitInline,
-               BustypeInline,]
+    inlines = [
+        TicketInline, 
+        ActivityWxGroupInline, 
+        BoardinglocInline, 
+        AreaBoardingLowerLimitInline,
+        BustypeInline,
+        RentpriceInline,
+    ]
 
 
 # 上车点

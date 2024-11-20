@@ -3,7 +3,7 @@ from rest_framework import serializers
 from django.utils.translation import gettext_lazy as _
 from django.core.validators import MinValueValidator
 from django.conf import settings
-from django.db.models import Min
+from django.db.models import Min, Sum
 from django.core.exceptions import ValidationError
 
 from .utils import SERVICES
@@ -250,6 +250,22 @@ class Ticket(models.Model):
         verbose_name_plural = "票"
 
 
+class Rentprice(models.Model):
+    activity = models.ForeignKey(verbose_name='活动', to=Activity, on_delete=models.PROTECT)
+
+    name = models.CharField(verbose_name='雪具名称', max_length=50, null=False, blank=False)
+    price = models.DecimalField(verbose_name='价格（整个活动时间的总价，不分天数）', max_digits=5, decimal_places=2, null=False, blank=False)
+    deposit = models.DecimalField(verbose_name='押金', max_digits=5, decimal_places=2, null=False, blank=False)
+
+
+    def __str__(self) -> str:
+        return f'{self.name} -- {self.price}元'
+
+    class Meta:
+        verbose_name = "雪具租赁信息"
+        verbose_name_plural = "雪具租赁信息"
+        unique_together = (("activity", "name",),)
+
 
 
 # ===============================序列化器============================================
@@ -297,6 +313,18 @@ class SkiresortSerializer3(serializers.ModelSerializer):
     class Meta:
         model = Skiresort
         fields = ['location', 'cover', 'pics']
+
+
+# 用于获取雪具租赁信息
+class RentpriceSerializer(serializers.ModelSerializer):
+    rent_item_id = serializers.IntegerField(source='id')
+    days = serializers.SerializerMethodField()
+    def get_days(self, obj):
+        return obj.activity.activity_template.duration_days
+    
+    class Meta:
+        model = Rentprice
+        fields = ['rent_item_id', 'name', 'price', 'deposit', 'days']
 
 
 WEEKDAY_MAP = {
@@ -357,6 +385,15 @@ class TicketSerializer2(serializers.ModelSerializer):
     service = serializers.SerializerMethodField()
     cover = serializers.SerializerMethodField()
 
+    rent_info = serializers.SerializerMethodField()
+    def get_rent_info(self, obj):
+        rent_item = Rentprice.objects.filter(activity=obj.activity)
+        if rent_item.count() > 0:
+            rent_item_serializer = RentpriceSerializer(instance=rent_item, many=True)
+            return rent_item_serializer.data
+        else:
+            return None
+
     def get_ticket_id(self, obj):
         return obj.id
 
@@ -393,7 +430,10 @@ class TicketSerializer2(serializers.ModelSerializer):
 
     class Meta:
         model = Ticket
-        fields = ['ticket_id', 'activity_id', 'activitytemplate_id', 'name', 'service', 'cover', 'begin_end', 'price', 'original_price']
+        fields = ['ticket_id', 'activity_id', 'activitytemplate_id', 
+                  'name', 'service', 'cover', 'begin_end', 
+                  'price', 'original_price',
+                  'rent_info']
 
 
 # 用于获取模板详情
