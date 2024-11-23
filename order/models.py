@@ -525,7 +525,7 @@ class OrderSerializer3(serializers.ModelSerializer):
         if obj.ticket.hotel is None:
             return obj.ticket.activity.activity_template.name
         else:
-            return obj.ticket.activity.activity_template.name + '|' + obj.ticket.hotel
+            return obj.ticket.activity.activity_template.name + ' | ' + obj.ticket.hotel
 
     def get_begin_date(self, obj):
         begin_date_raw = obj.ticket.activity.activity_begin_date
@@ -578,7 +578,7 @@ class OrderSerializer4(serializers.ModelSerializer):
         if obj.ticket.hotel is None:
             return obj.ticket.activity.activity_template.name
         else:
-            return obj.ticket.activity.activity_template.name + '|' + obj.ticket.hotel
+            return obj.ticket.activity.activity_template.name + ' | ' + obj.ticket.hotel
 
     def get_status(self, obj):
         if obj.status == 3 and obj.return_boarded == True:  # 已完成=已锁票+返程已上车

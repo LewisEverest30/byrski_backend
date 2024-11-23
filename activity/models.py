@@ -366,7 +366,7 @@ class TicketSerializer1(serializers.ModelSerializer):
         if obj.hotel is None:
             return obj.activity.activity_template.name
         else:
-            return obj.activity.activity_template.name + '|' + obj.hotel
+            return obj.activity.activity_template.name + ' | ' + obj.hotel
 
     def get_begin_end(self, obj):
         begin_date_raw = obj.activity.activity_begin_date
@@ -396,6 +396,7 @@ class TicketSerializer2(serializers.ModelSerializer):
     begin_end = serializers.SerializerMethodField()
     service = serializers.SerializerMethodField()
     cover = serializers.SerializerMethodField()
+    hotel = serializers.SerializerMethodField()
 
     rent_info = serializers.SerializerMethodField()
     def get_rent_info(self, obj):
@@ -420,7 +421,13 @@ class TicketSerializer2(serializers.ModelSerializer):
         if obj.hotel is None:
             return obj.activity.activity_template.name
         else:
-            return obj.activity.activity_template.name + '|' + obj.hotel
+            return obj.activity.activity_template.name + ' | ' + obj.hotel
+
+    def get_hotel(self, obj):
+        if obj.hotel is None:
+            return None
+        else:
+            return obj.hotel
 
     def get_begin_end(self, obj):
         begin_date_raw = obj.activity.activity_begin_date
@@ -448,7 +455,7 @@ class TicketSerializer2(serializers.ModelSerializer):
         model = Ticket
         fields = ['ticket_id', 'activity_id', 'activitytemplate_id', 
                   'name', 'service', 'cover', 'begin_end', 
-                  'price', 'original_price',
+                  'price', 'original_price', 'hotel', 'hotel_type', 
                   'rent_info']
 
 
