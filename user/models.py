@@ -173,9 +173,9 @@ class UserSerializerHomepage(serializers.ModelSerializer):
     leadtimes = serializers.SerializerMethodField()
 
     def get_school(self, obj):
-        if obj.identity == 1:
-            leader = Leader.objects.get(user_id=obj.id)
-            return leader.school.name
+        # if obj.identity == 1:
+        #     leader = Leader.objects.get(user_id=obj.id)
+        #     return leader.school.name
         if obj.school is None:
             return None
         else:

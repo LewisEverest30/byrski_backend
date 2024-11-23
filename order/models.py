@@ -228,7 +228,8 @@ class OrderSerializer2(serializers.ModelSerializer):
     ski_resort_name = serializers.CharField(source='ticket.activity.activity_template.ski_resort.name')
     location = serializers.CharField(source='ticket.activity.activity_template.ski_resort.location')
     ski_resort_phone = serializers.CharField(source='ticket.activity.activity_template.ski_resort.phone')
-    
+    hotel = serializers.SerializerMethodField()
+
     from_area = serializers.CharField(source='bus_loc.loc.area.area_name')
     to_area = serializers.CharField(source='ticket.activity.activity_template.ski_resort.area.area_name')
 
@@ -259,9 +260,15 @@ class OrderSerializer2(serializers.ModelSerializer):
         actiwxgroup = obj.wxgroup.qrcode
         return settings.MEDIA_URL + str(actiwxgroup)
 
+    def get_hotel(self, obj):
+        if obj.ticket.hotel is None:
+            return None
+        else:
+            return obj.ticket.hotel
+
     class Meta:
         model = TicketOrder
-        fields = ['ski_resort_name', 'location', 'ski_resort_phone', 
+        fields = ['ski_resort_name', 'location', 'ski_resort_phone', 'hotel',
                   'from_area', 'to_area', 'boardingloc', 'boardingtime',
                   'name', 'gender', 'phone', 'qrcode']
 
@@ -287,7 +294,10 @@ class OrderSerializerItinerary1(serializers.ModelSerializer):
         if obj.bus_loc is None or obj.bus_loc.loc is None:
             return None
         else:
-            return obj.bus_loc.loc.school.name + obj.bus_loc.loc.campus + obj.bus_loc.loc.busboardloc
+            if obj.status == 3:  # 已锁票
+                return obj.bus_loc.loc.school.name + obj.bus_loc.loc.campus + obj.bus_loc.loc.busboardloc
+            else:  # 未锁票
+                return obj.bus_loc.loc.school.name + obj.bus_loc.loc.campus + obj.bus_loc.loc.busboardloc + '(待定)'
     def get_boardingtime(self, obj):
         if obj.bus_time is None or obj.bus_time.time is None:
             return None
@@ -309,6 +319,7 @@ class OrderSerializerItinerary2(serializers.ModelSerializer):
     begin_date = serializers.SerializerMethodField()
     to_area = serializers.CharField(source='ticket.activity.activity_template.ski_resort.area.area_name')
     ticket_intro = serializers.CharField(source='ticket.intro')
+    hotel = serializers.SerializerMethodField()
 
     boardingtime = serializers.SerializerMethodField()
     arrivaltime = serializers.SerializerMethodField()
@@ -327,6 +338,12 @@ class OrderSerializerItinerary2(serializers.ModelSerializer):
 
     itinerary_status = serializers.SerializerMethodField()
     is_activity_expired = serializers.SerializerMethodField()
+
+    def get_hotel(self, obj):
+        if obj.ticket.hotel is None:
+            return None
+        else:
+            return obj.ticket.hotel
 
     def get_begin_date(self, obj):
         begin_date_raw = obj.ticket.activity.activity_begin_date
@@ -497,11 +514,18 @@ class RentorderSerializer(serializers.ModelSerializer):
 
 # 用于订单列表
 class OrderSerializer3(serializers.ModelSerializer):
-    activity_name = serializers.CharField(source='ticket.activity.activity_template.name')
+    activity_name = serializers.SerializerMethodField()
     begin_date = serializers.SerializerMethodField()
     intro = serializers.CharField(source='ticket.intro')
     cover = serializers.SerializerMethodField()
     original_price = serializers.CharField(source='ticket.original_price')
+    
+    def get_activity_name(self, obj):
+        # todo 增加hotel
+        if obj.ticket.hotel is None:
+            return obj.ticket.activity.activity_template.name
+        else:
+            return obj.ticket.activity.activity_template.name + '|' + obj.ticket.hotel
 
     def get_begin_date(self, obj):
         begin_date_raw = obj.ticket.activity.activity_begin_date
@@ -522,7 +546,7 @@ class OrderSerializer4(serializers.ModelSerializer):
     # status_description = serializers.SerializerMethodField()
     pay_ddl = serializers.SerializerMethodField()
 
-    activity_name = serializers.CharField(source='ticket.activity.activity_template.name')
+    activity_name = serializers.SerializerMethodField()
     begin_date = serializers.SerializerMethodField()
     intro = serializers.CharField(source='ticket.intro')
     cover = serializers.SerializerMethodField()
@@ -548,6 +572,13 @@ class OrderSerializer4(serializers.ModelSerializer):
             }
         else:
             return None
+
+    def get_activity_name(self, obj):
+        # todo 增加hotel
+        if obj.ticket.hotel is None:
+            return obj.ticket.activity.activity_template.name
+        else:
+            return obj.ticket.activity.activity_template.name + '|' + obj.ticket.hotel
 
     def get_status(self, obj):
         if obj.status == 3 and obj.return_boarded == True:  # 已完成=已锁票+返程已上车

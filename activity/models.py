@@ -237,8 +237,9 @@ class Ticket(models.Model):
                                 validators=[Validator_service, ],
                                 help_text='请使用空格分隔各个服务。可选服务有：'+SERVICE_STRING_SHOW)
     
-    # hotel_type = models.IntegerField(verbose_name='住宿类型', null=False, blank=False, default=0,
-    #                                  choices=)
+    hotel_type = models.IntegerField(verbose_name='住宿类型（是否提供分房服务）', null=False, blank=False, default=0,
+                                     choices=Hotel_choices.choices)
+    hotel = models.CharField(verbose_name='酒店', max_length=25, null=True, blank=True)
 
     price = models.DecimalField(verbose_name='单价', null=False, blank=False, max_digits=7, decimal_places=2,
                                 validators=[MinValueValidator(1)])    
@@ -361,7 +362,11 @@ class TicketSerializer1(serializers.ModelSerializer):
         return obj.activity.activity_template.id
 
     def get_activity_name(self, obj):
-        return obj.activity.activity_template.name
+        # todo 增加hotel
+        if obj.hotel is None:
+            return obj.activity.activity_template.name
+        else:
+            return obj.activity.activity_template.name + '|' + obj.hotel
 
     def get_begin_end(self, obj):
         begin_date_raw = obj.activity.activity_begin_date
@@ -411,7 +416,11 @@ class TicketSerializer2(serializers.ModelSerializer):
         return obj.activity.activity_template.id
 
     def get_name(self, obj):
-        return obj.activity.activity_template.name
+        # todo 增加hotel
+        if obj.hotel is None:
+            return obj.activity.activity_template.name
+        else:
+            return obj.activity.activity_template.name + '|' + obj.hotel
 
     def get_begin_end(self, obj):
         begin_date_raw = obj.activity.activity_begin_date
