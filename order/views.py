@@ -208,7 +208,8 @@ class get_itinerary_of_certain_order(APIView):
         info = json.loads(request.body)
         try:
             order_id = info['id']
-            order = TicketOrder.objects.get(Q(id=order_id) & ~Q(status=6))
+            userid = request.user['userid']
+            order = TicketOrder.objects.get(Q(user_id=userid) & Q(id=order_id) & ~Q(status=6))
             serializer = OrderSerializer2(instance=order, many=False)
             return Response({'ret': 0, 'data': serializer.data})
         except Exception as e:
