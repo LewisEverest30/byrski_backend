@@ -405,7 +405,7 @@ class TicketSerializer2(serializers.ModelSerializer):
             rent_item_serializer = RentpriceSerializer(instance=rent_item, many=True)
             return rent_item_serializer.data
         else:
-            return None
+            return []
 
     def get_ticket_id(self, obj):
         return obj.id

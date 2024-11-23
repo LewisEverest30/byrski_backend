@@ -470,7 +470,7 @@ class OrderSerializerItinerary2(serializers.ModelSerializer):
     class Meta:
         model = TicketOrder
         fields = ['activity_id', 'ordernumber', 'name', 'ski_resort_location', 'begin_date', 'busnumber',
-                  'to_area', 'ticket_intro', 'boardingtime', 'arrivaltime',
+                  'to_area', 'ticket_intro', 'boardingtime', 'arrivaltime', 'hotel',
                   'boardingloc', 'arrivalloc', 'return_time', 'return_loc', 'schedule', 'attention',
                   'qrcode', 'leader_info', 'boardingloc_available', 'itinerary_status', 'is_activity_expired']
 
