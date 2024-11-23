@@ -102,7 +102,7 @@ class TicketInlineFormSet(BaseInlineFormSet):
             raise ValidationError('每个活动至少需要1个雪票。')
 class TicketInline(admin.TabularInline):
     formset = TicketInlineFormSet
-    fields = ('intro', 'service', 'price', 'original_price', 'sales')
+    fields = ('intro', 'service','hotel_type', 'hotel', 'price', 'original_price', 'sales')
     model = Ticket
     extra = 0   
     readonly_fields = ('sales',)

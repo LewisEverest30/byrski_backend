@@ -344,7 +344,7 @@ WEEKDAY_MAP = {
     "Saturday": "周六",
     "Sunday": "周日"
 }
-# 用于获取滑雪场详细信息
+# 用于获取滑雪场下面的所有票
 class TicketSerializer1(serializers.ModelSerializer):
     ticket_id = serializers.SerializerMethodField()
     activity_id = serializers.SerializerMethodField()
