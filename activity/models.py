@@ -226,6 +226,10 @@ class Bustype(models.Model):
 
 # 雪票
 class Ticket(models.Model):
+    class Hotel_choices(models.IntegerChoices):
+        not_provide_allocation = 0, _('不提供分配')
+        provide_allocation = 1, _('提供分配')
+    
     activity = models.ForeignKey(verbose_name='活动', to=Activity, on_delete=models.PROTECT)
     intro = models.CharField(verbose_name='简介', max_length=25, null=True, blank=False)
     
@@ -233,6 +237,9 @@ class Ticket(models.Model):
                                 validators=[Validator_service, ],
                                 help_text='请使用空格分隔各个服务。可选服务有：'+SERVICE_STRING_SHOW)
     
+    # hotel_type = models.IntegerField(verbose_name='住宿类型', null=False, blank=False, default=0,
+    #                                  choices=)
+
     price = models.DecimalField(verbose_name='单价', null=False, blank=False, max_digits=7, decimal_places=2,
                                 validators=[MinValueValidator(1)])    
     original_price = models.DecimalField(verbose_name='原价', null=True, blank=False, max_digits=7, decimal_places=2,

@@ -326,6 +326,7 @@ class OrderSerializerItinerary2(serializers.ModelSerializer):
     boardingloc_available = serializers.SerializerMethodField()
 
     itinerary_status = serializers.SerializerMethodField()
+    is_activity_expired = serializers.SerializerMethodField()
 
     def get_begin_date(self, obj):
         begin_date_raw = obj.ticket.activity.activity_begin_date
@@ -419,15 +420,15 @@ class OrderSerializerItinerary2(serializers.ModelSerializer):
         #     return 6
         else:                                                                   # 其他时间内
             if obj.go_boarded == False:  # 去程还未上车
-                bus_datetime = datetime.combine(
-                    obj.ticket.activity.activity_begin_date,  # 活动开始日期
-                    obj.bus_time.time  # 预计上车时间
-                )
-                # print(bus_datetime)
-                # print(timezone.now() + timedelta(minutes=30))
-                # print(bus_datetime < (timezone.now() + timedelta(minutes=30)))
-                if obj.bus_time is not None and obj.bus_time.time is not None and bus_datetime < (timezone.now() + timedelta(minutes=30)):  # 上车时间还没到
-                    return 2
+                if obj.bus_time is not None and obj.bus_time.time is not None :
+                    bus_datetime = datetime.combine(
+                        obj.ticket.activity.activity_begin_date,  # 活动开始日期
+                        obj.bus_time.time  # 预计上车时间
+                    )
+                    if bus_datetime < (timezone.now() + timedelta(minutes=30)):  # 上车时间半小时内
+                        return 2
+                    else:
+                        return 0
                 else:
                     return 0
             else:                        # 上车了
@@ -442,12 +443,19 @@ class OrderSerializerItinerary2(serializers.ModelSerializer):
                 else:  # 去程上车了，且返程未上车，且已经完成验票，且处在活动指引中
                     return 4
 
+    def get_is_activity_expired(self, obj):
+        if obj.ticket.activity.status >= 1:
+            return True
+        else:
+            return False
+        
+    
     class Meta:
         model = TicketOrder
         fields = ['activity_id', 'ordernumber', 'name', 'ski_resort_location', 'begin_date', 'busnumber',
                   'to_area', 'ticket_intro', 'boardingtime', 'arrivaltime',
                   'boardingloc', 'arrivalloc', 'return_time', 'return_loc', 'schedule', 'attention',
-                  'qrcode', 'leader_info', 'boardingloc_available', 'itinerary_status']
+                  'qrcode', 'leader_info', 'boardingloc_available', 'itinerary_status', 'is_activity_expired']
 
 
 class BusSerializer(serializers.ModelSerializer):
