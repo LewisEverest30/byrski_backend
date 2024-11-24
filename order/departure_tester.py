@@ -7,13 +7,13 @@ from activity.models import Ticket, Boardingloc, Activity
 
 # ID_FILE = 'test_order_id.txt'
 ID_FILE = '/root/byrski_backend/test_order_id.txt'
-ACTIVITY_ID = 4
-TICKET_ID = 4
-COST = 399
-WXG_ID = 6
+ACTIVITY_ID = 6
+TICKET_ID = 9
+COST = 111
+WXG_ID = 11
 USER_ID = 3
-GOOD_BL_CHOICE = [12, 12, 13, 14, 14, 15, 16, 17]
-BAD_BL_CHOICE = [18, 19, ]
+GOOD_BL_CHOICE = [30, 31, 31, 32, 33, 34, 34, 35, ]
+BAD_BL_CHOICE = [36, ]
 
 # 创建测试使用的ticketorder
 def create_test_ticket_order():
@@ -42,7 +42,7 @@ def create_test_ticket_order():
     
     
     # 构建上车点不足的订单
-    for i in range(22):
+    for i in range(15):
         busloc_id = random.choice(BAD_BL_CHOICE)
         order = TicketOrder.objects.create(
             user_id = USER_ID,

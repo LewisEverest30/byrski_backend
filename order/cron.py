@@ -13,6 +13,18 @@ EMPTY_SEAT_BUFFER = 5
 STAFF_NUM = 1
 VEHICLE_CAPACITY_DEFAULT = [37,47]     # 车辆容量
 VEHICLE_COST_DEFAULT = [3200, 3800]   # 费用
+AREA_Beijing = {1: "Haidian", 
+                15: "Shunyi", 
+                5: "Fengtai", 
+                14: "Tongzhou", 
+                2: "Changping", 
+                13: "Huairou",  
+                12: "Daxing", 
+                11: "Shijingshan", 
+                10: "Fangshan", 
+                9: "Miyun", 
+                7: "Xicheng", 
+                8: "Dongcheng"}
 
 
 
@@ -92,68 +104,77 @@ def set_activity_locked():
         # 按区域组织上车点的信息，区域id + 总人数
         area_info = Boardingloc.objects.filter(activity_id=acti.id).values('loc__area_id').distinct().annotate(total_people_num=Sum("choice_peoplenum"))
 
+        area_loc_info = {}  # 所有区域的上车点信息
         # 每辆车都只在区域内接人，不会跨区拼车
         for area in area_info:
             print(f'  # trying to run the departure allocation program(BRM) for area#{area["loc__area_id"]}')
             area_id = area['loc__area_id']
-            total_people_num = area['total_people_num']
+            area_input_name = AREA_Beijing[area_id]
+            # total_people_num = area['total_people_num']
 
             # 拿到该区域内的上车点信息，点id+人数
             loc_info = Boardingloc.objects.filter(activity_id=acti.id, loc__area_id=area_id).values('id', 'choice_peoplenum').order_by('-choice_peoplenum')
             # 将loc_info转化成id为key，人数为value的字典
             loc_info_dict = {i['id']: i['choice_peoplenum'] for i in loc_info}
+            area_loc_info[area_input_name] = loc_info_dict
 
-            # 获取分车信息(banrenma)
-            print('    ====BRM START====')
-            print('    total_people_num:', total_people_num)
-            print('    loc_info_dict:', loc_info_dict)
-            print('    vehicle_capacity:', vehicle_capacity)
-            print('    vehicle_costs:', vehicle_costs)
-            bus_allocation_objs = plan_route_top(total_people_num, loc_info_dict, vehicle_capacity, vehicle_costs)
-            for bus in bus_allocation_objs:
-                print('    bus:', bus)
-            print('    ====BRM END====')
+        # 获取分车信息(banrenma)
+        print('====BRM START====')
+        # print('    total_people_num:', total_people_num)
+        print('area_loc_info:', area_loc_info)
+        print('vehicle_capacity:', vehicle_capacity)
+        print('vehicle_costs:', vehicle_costs)
+        bus_allocation_objs = plan_route_top(area_loc_info, vehicle_capacity, vehicle_costs)
+        bus_list = []
+        for areabus in bus_allocation_objs:
+            bus_list += areabus.bus_list
+            print('    areabus:', areabus)
+        print('====BRM END====')
 
-            # 查询该活动当前区域内所有订单，并按上车点排序，得到上车点id为key，订单列表为value的字典
-            with transaction.atomic():
-                all_related_orders = TicketOrder.objects.select_for_update().filter(Q(ticket__activity_id=acti.id) & Q(bus_loc__loc__area_id=area_id) & ~Q(status=6)).order_by('bus_loc__choice_peoplenum')
-                if total_people_num != all_related_orders.count():
-                    print ('Wrong people num(total_people_num != all_related_orders.count)')
-                    print (f'    total_people_num={total_people_num} all_related_orders.count={all_related_orders.count()}')
-                    print (f'Fail to create bus for area: {area_id}')                
-                    return
+        # 为活动的所有订单分配车辆
+        # 查询该活动当前区域内所有订单，并按上车点排序，得到上车点id为key，订单列表为value的字典
+        with transaction.atomic():
+            # all_related_orders = TicketOrder.objects.select_for_update().filter(Q(ticket__activity_id=acti.id) & Q(bus_loc__loc__area_id=area_id) & ~Q(status=6)).order_by('bus_loc__choice_peoplenum')
+            all_related_orders = TicketOrder.objects.select_for_update().filter(Q(ticket__activity_id=acti.id) & ~Q(status=6)).order_by('bus_loc__choice_peoplenum')
+            # if total_people_num != all_related_orders.count():
+            #     print ('Wrong people num(total_people_num != all_related_orders.count)')
+            #     print (f'    total_people_num={total_people_num} all_related_orders.count={all_related_orders.count()}')
+            #     print (f'Fail to create bus for area: {area_id}')                
+            #     return
 
-                all_related_orders_dict = {}
-                for order in all_related_orders:    # 将all_related_orders转化成id为key，订单有序列表为value的字典
-                    if order.bus_loc.id not in all_related_orders_dict:
-                        all_related_orders_dict[order.bus_loc.id] = {
-                            'allocated_num': 0,
-                            'orders': [order]
-                        }
-                    else:
-                        all_related_orders_dict[order.bus_loc.id]['orders'].append(order)
-                
-                # 为每辆车分配订单
-                for bus in bus_allocation_objs:
-                    # 创建车辆
-                    # todo 容量是bus的哪个属性？ carry_peoplenum应该等于？
-                    newbus = Bus.objects.create(activity_id=acti.id, carry_peoplenum=bus.capity-bus.empty_seats, max_people=bus.capity)
+            all_related_orders_dict = {}
+            for order in all_related_orders:    # 将all_related_orders转化成id为key，订单有序列表为value的字典
+                if order.bus_loc.id not in all_related_orders_dict:
+                    all_related_orders_dict[order.bus_loc.id] = {
+                        'allocated_num': 0,
+                        'orders': [order]
+                    }
+                else:
+                    all_related_orders_dict[order.bus_loc.id]['orders'].append(order)
+            
+            # 为每辆车分配订单
+            for bus in bus_list:
+                # 创建车辆
+                # todo 容量是bus的哪个属性？ carry_peoplenum应该等于？
+                newbus = Bus.objects.create(activity_id=acti.id, carry_peoplenum=bus.capity-bus.empty_seats, max_people=bus.capity)
 
-                    # 遍历这辆车经过的各个点，创建车辆-上车点-时间对应
-                    for loc_id, people_num in bus.route.items():  # 每个车经过几个点, 上车点id：人数
-                        # 创建新的 Bus_boarding_time 实例
-                        newbusloctime = Bus_boarding_time.objects.create(bus_id=newbus.id, loc_id=loc_id, boarding_peoplenum=people_num)
+                # 遍历这辆车经过的各个点，创建车辆-上车点-时间对应
+                for loc_id, people_num in bus.route.items():  # 每个车经过几个点, 上车点id：人数
+                    # 创建新的 Bus_boarding_time 实例
+                    newbusloctime = Bus_boarding_time.objects.create(bus_id=newbus.id, loc_id=loc_id, boarding_peoplenum=people_num)
 
-                        # 更新订单的车辆和上车点-时间对应
-                        begin_index = all_related_orders_dict[loc_id]['allocated_num']
-                        for order in all_related_orders_dict[loc_id]['orders'][begin_index : begin_index + people_num]:
-                            order.bus_id = newbus.id
-                            order.bus_time_id = newbusloctime.id
-                            order.save()
-                        
-                        # 更新已分配人数
-                        all_related_orders_dict[loc_id]['allocated_num'] += people_num                
-            print(f'  # success to run the departure allocation program(BRM) for area#{area["loc__area_id"]}')
+                    # 更新订单的车辆和上车点-时间对应
+                    begin_index = all_related_orders_dict[loc_id]['allocated_num']
+                    for order in all_related_orders_dict[loc_id]['orders'][begin_index : begin_index + people_num]:
+                        order.bus_id = newbus.id
+                        order.bus_time_id = newbusloctime.id
+                        order.save()
+                    
+                    # 更新已分配人数
+                    all_related_orders_dict[loc_id]['allocated_num'] += people_num                
+        # print(f'  # success to run the departure allocation program(BRM) for area#{area["loc__area_id"]}')
+
+
         acti.success_departue = True
         acti.save()
         print(f'$ success to run the departure allocation program(BRM) for activity#{acti.id}')

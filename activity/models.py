@@ -204,7 +204,7 @@ class ActivityWxGroup(models.Model):
     update_time = models.DateTimeField(verbose_name='修改时间', auto_now=True)
 
     def __str__(self) -> str:
-        return f'{self.activity}'
+        return f'{self.activity} #{self.id}'
 
     class Meta:
         verbose_name = "微信群二维码"

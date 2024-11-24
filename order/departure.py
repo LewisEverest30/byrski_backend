@@ -1,7 +1,7 @@
 # =====================================新版分车============================================================
 
 import random
-
+from pprint import pformat
 import logging
 
 
@@ -11,52 +11,64 @@ logging.basicConfig(
     format='%(levelname)s - %(message)s' 
 )
 
-# vehicle_capacity = np.array([37,47])
-# vehicle_costs = np.array([3200, 3800])  # 费用
-
 
 AVERAGE = []
-MIN_THRESHOLD = 2
+MIN_THRESHOLD = 3
+MIN_OCCUPANY_RATE = 0.8
+MAX_MERGE_AREA = 2
+MAX_STATION_PER_BUS = 4
+
+AREA_Beijing = ["Haidian","Shunyi","Fengtai","Tongzhou","Changping","Huairou",
+                "Daxing","Shijingshan","Fangshan","Miyun","Xicheng","Dongcheng"]
 
 
 
 
-def optimal_bus_combos(N, C_A, P_A, C_B, P_B, a_count=0, b_count=0, alpha=1.0, memo=None):
-    if memo is None:
-        memo = {}
 
-    total_capacity = a_count * C_A + b_count * C_B
-    if total_capacity >= N:
-        total_cost = a_count * P_A + b_count * P_B
-        total_vehicles = a_count + b_count
+class AreaBus:
+
+    def __init__(self, areas, bus_list):
+
+        self.areas = areas
+        self.bus_list = bus_list
         
-        max_cost = max(P_A, P_B) * (N // min(C_A, C_B)+1)  
-        # max_vehicles = (N // min(C_A, C_B)) + (N // min(C_A, C_B))  
-        normalized_cost = total_cost / max_cost
-        # normalized_vehicles = total_vehicles / max_vehicles
+    def mergeArea(self,areaBus):
+        self.areas.append(areaBus.areas[0])
+        self.bus_list = self.bus_list + areaBus.bus_list
+
+    def getAverageRate(self):
+        average_rate = 0
+        for b in self.bus_list:
+            average_rate += b.calc_seating_rate()
+        return average_rate/len(self.bus_list)
+
+    def getStationsDict(self):
+        stations = {}
+        for bus in self.bus_list:
+            for stname, pnum in bus.route.items():
+                if stname in stations:
+                    stations[stname] += pnum
+                else:
+                    stations[stname] = pnum
+
+        return stations
+
+
+    def getPnum(self):
+        pnum = 0
+        for bus in self.bus_list:
+            pnum + bus.get_total_passenger_num()
         
-        combined_cost = alpha * normalized_cost    # + (1 - alpha) * normalized_vehicles
-        return (a_count, b_count), combined_cost 
+        return pnum
 
-    state = (a_count, b_count)
-    if state in memo:
-        return memo[state]
+    def getBusnum(self):
+        return len(self.bus_list)
 
-    best_combo = (0, 0)
-    best_cost = float('inf')
-
-    combo_a, cost_a = optimal_bus_combos(N, C_A, P_A, C_B, P_B, a_count + 1, b_count, alpha, memo)
-    if cost_a < best_cost:
-        best_cost = cost_a
-        best_combo = combo_a
-
-    combo_b, cost_b = optimal_bus_combos(N, C_A, P_A, C_B, P_B, a_count, b_count + 1, alpha, memo)
-    if cost_b < best_cost:
-        best_cost = cost_b
-        best_combo = combo_b
-
-    memo[state] = (best_combo, best_cost)
-    return memo[state]
+    def __str__(self) -> str:
+        bus_str = ""
+        for bus in self.bus_list:
+            bus_str += "\t" + str(bus) + "\n"
+        return f"Area_list: {self.areas}, Busnum: {len(self.bus_list)}\n{bus_str}"
 
 class Bus:
 
@@ -141,13 +153,103 @@ class Bus:
         tmp_dict = sorted(self.route.items(), key=lambda x:-x[1])
         return tmp_dict[0][0], tmp_dict[0][1]
 
-def add_bus(combo,count=0):
-    new_combo = None
-    if combo[1] > count :
-        new_combo = (combo[0]+count+1,combo[1]-count-1)
+
+# 获取最优价格车辆
+def get_initial_bus_combos(N, C_A, P_A, C_B, P_B,):
+   
+    def optimal_bus_combos(N, C_A, P_A, C_B, P_B, a_count=0, b_count=0, alpha=1.0, memo=None):
+        if memo is None:
+            memo = {}
+        total_capacity = a_count * C_A + b_count * C_B
+        if total_capacity >= N:
+            total_cost = a_count * P_A + b_count * P_B
+            max_cost = max(P_A, P_B) * (N // min(C_A, C_B) + 1) 
+   
+            normalized_cost = total_cost / max_cost
+            combined_cost = alpha * normalized_cost    
+            return (a_count, b_count), combined_cost 
+        state = (a_count, b_count)
+        if state in memo:
+            return memo[state]
+
+        best_combo = (0, 0)
+        best_cost = float('inf')
+
+        combo_a, cost_a = optimal_bus_combos(N, C_A, P_A, C_B, P_B, a_count + 1, b_count, alpha, memo)
+        if cost_a < best_cost:
+            best_cost = cost_a
+            best_combo = combo_a
+
+        combo_b, cost_b = optimal_bus_combos(N, C_A, P_A, C_B, P_B, a_count, b_count + 1, alpha, memo)
+        if cost_b < best_cost:
+            best_cost = cost_b
+            best_combo = combo_b
+
+        memo[state] = (best_combo, best_cost)
+        return memo[state]
+
+    
+    best_combo, best_cost = optimal_bus_combos(N, C_A, P_A, C_B, P_B, alpha=1)
+    best_cost = best_combo[0]*P_A + best_combo[1]*P_B
+
+    return best_combo, best_cost
+    
+
+
+#############################   车站优化 ################################### 
+
+def plan_route(stations,vehicle_capacity,vehicle_costs, enable_logging = True):
+
+    logger = logging.getLogger()  
+    logger.setLevel(logging.INFO)  
+    if enable_logging:
+        logger.setLevel(logging.INFO)
     else:
-        new_combo = (combo[0],combo[1]+1)
-    return new_combo
+        logger.setLevel(logging.CRITICAL)
+
+    total_sum = sum(stations.values())
+    best_combo, best_cost = get_initial_bus_combos(total_sum,
+                                        vehicle_capacity[1],
+                                        vehicle_costs[1],
+                                        vehicle_capacity[0],
+                                        vehicle_costs[0])
+    
+    def add_bus(combo,count=0):
+        new_combo = None
+        if combo[1] > count :
+            new_combo = (combo[0]+count+1,combo[1]-count-1)
+        else:
+            new_combo = (combo[0],combo[1]+1)
+        return new_combo
+    
+
+    bus_list = None
+    re_plan = False
+    re_plan_count = 0
+    add_combo = best_combo
+
+    while True:
+        if re_plan:
+            logging.info(f"------------re_plan----------------------")
+            add_combo = add_bus(best_combo,re_plan_count)
+            re_plan_count += 1
+        cost = add_combo[0]*vehicle_costs[1] + add_combo[1]*vehicle_costs[0]
+        logging.info(f"Total Bus: {add_combo[0] + add_combo[1]} \
+                Large Bus : {add_combo[0]}  \
+                Small Bus : {add_combo[1]} \
+                Total Cost: {cost}")
+        
+        bus_list = plan_route_rough(*add_combo,vehicle_capacity,vehicle_costs,stations,init_reserved_seats = 0)
+        bus_list = plan_route_by_station(bus_list)
+
+        average_rate = sum([b.calc_seating_rate() for b in bus_list])
+        logging.info(f"Average seating rate:{average_rate/len(bus_list)} ")
+
+        re_plan = check_route(stations, bus_list)
+        if not re_plan or re_plan_count > 4:
+            break
+    logging.info(f"*************************(cost - best_cost): {cost - best_cost}*************************")
+    return bus_list
 
 def plan_route_rough(larger_bus, small_bus,vehicle_capacity,vehicle_costs, stations,init_reserved_seats=1):
     bus_list = []
@@ -190,33 +292,48 @@ def plan_route_rough(larger_bus, small_bus,vehicle_capacity,vehicle_costs, stati
             break
     return bus_list
 
-def find_exchange_bus(bus_list,sta_name,pnum):
-    ex_bus = []
-    for bus in bus_list:
-        if bus.get_pnum_by_station(sta_name) > max(6,pnum) :
-            ex_bus.append(bus)
-    if len(ex_bus):
-        ex_bus = sorted(ex_bus, key=lambda x : len(x.route))
-        return ex_bus[0]
-    else:
-        a = 99
-    return None
+def plan_route_by_station(bus_list,reserved_seats=0):
 
-def exchange_bus(opt_bus,ex_bus,min_station):
-    if ex_bus is None:
-        print("NONENEEEE!!!!")
+    def find_exchange_bus(bus_list,sta_name,pnum):
+        ex_bus = []
+        for bus in bus_list:
+            if bus.get_pnum_by_station(sta_name) > max(MIN_THRESHOLD*2,pnum) :
+                ex_bus.append(bus)
+        if len(ex_bus):
+            ex_bus = sorted(ex_bus, key=lambda x : len(x.route))
+            return ex_bus[0]
         return None
 
-    opt_sta, opt_max_pnum = opt_bus.get_max_station()
-    ex_pnum = ex_bus.get_pnum_by_station(min_station)
-    pnum = min(opt_max_pnum//2,ex_pnum//2)
+    def exchange_bus(opt_bus,ex_bus,min_station):
+        if ex_bus is None:
+            return None
 
-    opt_bus.remove_passenger(opt_sta,pnum)
-    ex_bus.remove_passenger(min_station,pnum)
+        opt_sta, opt_max_pnum = opt_bus.get_max_station()
+        ex_pnum = ex_bus.get_pnum_by_station(min_station)
+        pnum = min(opt_max_pnum//2,ex_pnum//2)
 
-    opt_bus.load_passenger(min_station,pnum)
-    ex_bus.load_passenger(opt_sta,pnum)
+        opt_bus.remove_passenger(opt_sta,pnum)
+        ex_bus.remove_passenger(min_station,pnum)
 
+        opt_bus.load_passenger(min_station,pnum)
+        ex_bus.load_passenger(opt_sta,pnum)
+
+
+    for opt_bus in bus_list:
+        min_station, min_pnum = opt_bus.get_min_station()
+        while min_pnum < MIN_THRESHOLD:
+            ex_bus = find_exchange_bus(bus_list,min_station, min_pnum)
+            exchange_bus(opt_bus,ex_bus,min_station)
+            min_station, min_pnum = opt_bus.get_min_station()
+
+    new_buses = optimize_buses(bus_list)
+    for idx, bus in enumerate(new_buses):
+        if len(bus.route) > MIN_THRESHOLD:
+            logging.info(f"*******WARNING bus route > 3********")
+        logging.info(f"Bus : {bus.size}_{idx}, \nRoute: {bus.route.keys()}, Passengers: {bus.route.values()}")
+
+    return new_buses
+        
 def optimize_buses(bus_list):
     for optbus in bus_list:
 
@@ -263,38 +380,6 @@ def optimize_buses(bus_list):
 
     return bus_list
 
-def plan_route_by_station(bus_list,reserved_seats=0):
-    logging.info("^^^^^^^^^^^^^^^^^((((((plan_route_by_station))))))---------------")
-
-    for opt_bus in bus_list:
-        min_station, min_pnum = opt_bus.get_min_station()
-        while min_pnum < MIN_THRESHOLD:
-            ex_bus = find_exchange_bus(bus_list,min_station, min_pnum)
-            exchange_bus(opt_bus,ex_bus,min_station)
-            min_station, min_pnum = opt_bus.get_min_station()
-
-    new_buses = optimize_buses(bus_list)
-    for idx, bus in enumerate(new_buses):
-        if len(bus.route) > 3:
-            logging.info(f"*******WARNING bus route > 3********")
-        logging.info(f"Bus : {bus.size}_{idx}, \nRoute: {bus.route.keys()}, Passengers: {bus.route.values()}")
-
-    return new_buses
-        
-def plan_route(stations,vehicle_capacity,vehicle_costs,reserved_seats,best_combo):
-
-    bus_list = plan_route_rough(*best_combo,vehicle_capacity,vehicle_costs,stations,init_reserved_seats = reserved_seats)
-    for idx, bus in enumerate(bus_list):
-        logging.info(f"Bus : {bus.size}_{idx} \n Route: {bus.route.keys()} Passengers: {bus.route.values()}")
-
-    new_bus_list = plan_route_by_station(bus_list,reserved_seats)
-    average_rate = 0
-    for b in new_bus_list:
-        average_rate += b.calc_seating_rate()
-    logging.info(f"Average seating rate:{average_rate/len(new_bus_list)} ")
-
-    return best_combo,new_bus_list
-
 def check_route(stations, bus_list):
 
     total_passengers = {}
@@ -303,27 +388,25 @@ def check_route(stations, bus_list):
     bus_station_count = {}
 
     for bus_index, bus in enumerate(bus_list):
-        station_count = 0
+
         for station, passenger_count in bus.route.items():
-            if passenger_count == 1:
-                need_re_plan = True
             if station not in total_passengers:
                 total_passengers[station] = 0
                 bus_count[station] = 0
             total_passengers[station] += passenger_count
             bus_count[station] += 1  
-            station_count += 1 
-
-        bus_station_count[bus_index] = station_count
-        if station_count > 3:
+        
+        bus_station_count[bus_index] = len(bus.route)
+        if len(bus_list) >= 3 and len(bus.route) > MAX_STATION_PER_BUS:
             need_re_plan = True
+
 
     for station, real_pnum in stations.items():
         if station in total_passengers:
             if total_passengers[station] != real_pnum:
                 logging.info(f"Station '{station}' has {total_passengers[station]}, but requires {real_pnum}.")
         else:
-            logging.info(f"Station '{station}' is missing from bus_list.")
+            logging.error(f"Station '{station}' is missing from bus_list.")
 
     logging.info("\nBus counts per station:")
     for station, count in bus_count.items():
@@ -333,72 +416,98 @@ def check_route(stations, bus_list):
 
     return need_re_plan
 
-def plan_route_top(total_sum,stations,vehicle_capacity,vehicle_costs):
+
+
+###################### 区域优化  ###########################
+
+def merge_area_buses(area_buses, merge_map):
+
+    id_to_bus = {bus.areas[0]: bus for bus in area_buses}
+    isMerge = False
+
+    area_buses.sort(key=lambda x: x.getAverageRate())
+    opt_areas = [buses.areas[0] for buses in area_buses if buses.getAverageRate() <= MIN_OCCUPANY_RATE ]
+    merged_ids = set() 
+    for bus in area_buses:
+        if bus.getAverageRate() > MIN_OCCUPANY_RATE:
+            continue
+        if bus.areas[0] in merged_ids or len(bus.areas) > 1:
+            continue
+
+        candidates = merge_map.get(bus.areas[0], [])
+        candidates = sorted(
+            (id_to_bus[cid] for cid in candidates 
+                if cid not in merged_ids and 
+                cid in id_to_bus and 
+                len(id_to_bus[cid].areas) < 2 ),
+            key=lambda x: x.getAverageRate(),
+        )
+        not_in_opt = [bus for bus in candidates if bus.areas[0] not in opt_areas]
+        in_opt = [bus for bus in candidates if bus.areas[0] in opt_areas]
+        cand_area =  not_in_opt + in_opt
+
+        if cand_area:
+            target_bus = cand_area[0]
+            target_bus.mergeArea(bus)
+            merged_ids.add(bus.areas[0]) 
+            area_buses.remove(bus)
+            isMerge = True
+    if isMerge:
+        logging.critical("----------MERGE-------------")
+    return area_buses
+
+def optimize_areas(area_buses):
+    
+    merge_map = {"Haidian":["Changping","Xicheng","Shijingshan","Fengtai"],
+                 "Shijingshan":["Haidian","Fengtai"],
+                 "Fengtai":["Daxing","Xicheng","Haidian"],
+                 "Daxing":["Fengtai"],
+                 "Fangshan":["Daxing","Fengtai"],
+                 "Xicheng":["Dongcheng","Haidian","Fengtai"],
+                 "Dongchen":["Chaoyang","Fengtai","Xicheng"],
+                 "Chaoyang":["Dongcheng","Shunyi"],
+                 "Shunyi":["Tongzhou","Chaoyang","Huairou"],
+                 "Tongzhou":["Shunyi"],
+                 "Changping":["Haidian","Shunyi","Huairou"],
+                 "Huairou":["Miyun","Changping","Shunyi"],
+                 "Miyun":["Huairou","Shunyi"]}
+
+    opt_areaBuses = merge_area_buses(area_buses,merge_map)
+
+    return opt_areaBuses
+
+
+
+
+# 启动函数
+
+def plan_route_top(area_stations,vehicle_capacity,vehicle_costs):
 
     try:
         assert len(vehicle_capacity) == 2
         assert len(vehicle_costs) == 2
     except Exception as e:
         logging.info(f" ERROR: vehicle_capacity or vehicle_costs length is not 2")
+        raise ValueError(f"Invalid vehicle_capacity or vehicle_costs length is not 2")
 
-    best_combo, best_cost = optimal_bus_combos(total_sum,
-                                        vehicle_capacity[1],
-                                        vehicle_costs[1],
-                                        vehicle_capacity[0],
-                                        vehicle_costs[0],alpha=1)
+    for area_name in area_stations.keys():
+        if area_name not in AREA_Beijing:
+            raise ValueError(f"Invalid area found: {area_name}. Allowed areas are: {AREA_Beijing}")
+
     
-    best_cost = best_combo[0]*vehicle_costs[1] + best_combo[1]*vehicle_costs[0]
+    logging.info(f" \n \n------------start_plan----------------------")
+    logging.info("area_stations:\n%s", pformat(area_stations))
+    area_buses = []
+    for area_name, stations in area_stations.items():
+        bus_list = plan_route(stations,vehicle_capacity,vehicle_costs, enable_logging = False)
+        area_buses.append(AreaBus([area_name],bus_list))
 
-    cost = 0
-    bus_list = None
-    re_plan = False
-    re_plan_count = 0
-    add_combo = best_combo
-    while True:
-        if re_plan:
-            logging.info(f"------------re_plan----------------------")
-            add_combo = add_bus(best_combo,re_plan_count)
-            re_plan_count += 1
-        cost = add_combo[0]*vehicle_costs[1] + add_combo[1]*vehicle_costs[0]
-        logging.info(f"Total Bus: {add_combo[0] + add_combo[1]} \
-                Large Bus : {add_combo[0]}  \
-                Small Bus : {add_combo[1]} \
-                Total Cost: {cost}")
+    opt_areaBuses = optimize_areas(area_buses)
+    newAreaBus = []
+    for opt_areaBus in opt_areaBuses:
+        stations = opt_areaBus.getStationsDict()
+        bus_list = plan_route(stations,vehicle_capacity,vehicle_costs, enable_logging = True)
+        newAreaBus.append(AreaBus(opt_areaBus.areas,bus_list))
 
-        com, bus_list = plan_route(stations,vehicle_capacity,vehicle_costs, 0, add_combo)
-        re_plan = check_route(stations, bus_list)
-        if not re_plan or re_plan_count > 4:
-            break
-    logging.info(f"XXXXXXX{cost - best_cost}*************************")
-    return bus_list
+    return newAreaBus
 
-
-
-
-
-
-# if __name__ == '__main__':
-    # vehicle_capacity = np.array([37,47])
-    # vehicle_costs = np.array([3200, 3800])
-
-    # filename = 'stations2.json'
-    # generate_weighted_data(500,12,filename)
-
-    # stations_list, sums_list = load_data(filename)
-    # for i, (stations, total_sum) in enumerate(zip(stations_list, sums_list)):
-    #     logging.info(f"-----------------------------------------------")  
-    #     logging.info(f"Dictionary {i + 1}: \n Total Passenger:{total_sum} \n {stations}")  
-    #     best_combo, best_cost = optimal_bus_combos(total_sum,
-    #                                         vehicle_capacity[1],
-    #                                         vehicle_costs[1],
-    #                                         vehicle_capacity[0],
-    #                                         vehicle_costs[0],alpha=1)
-        
-    #     cost = best_combo[0]*vehicle_costs[1] + best_combo[1]*vehicle_costs[0]
-    #     logging.info(f"*************BEST PRICE****************")
-    #     logging.info(f"Total Bus: {best_combo[0] + best_combo[1]} \
-    #             Large Bus : {best_combo[0]}  \
-    #             Small Bus : {best_combo[1]} \
-    #             Total Cost: {cost}")
-        
-        # plan_route_top(total_sum,stations,vehicle_capacity,vehicle_costs)

@@ -3,3 +3,7 @@
 *.key
 *.zip
 *.sqlite3
+
+activity/migrations/*
+order/migrations/*
+user/migrations/*

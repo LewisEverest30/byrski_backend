@@ -709,8 +709,15 @@ class verify_itinerary_qrcode(APIView):
                     if leader_itinerary.count() == 0:
                         return Response({'ret': 422004,'errmsg':"该用户不属于本辆大巴车",'data':None})
                     
-                    TicketOrder.objects.filter(Q(ordernumber=ordernumber)).update(ticket_checked=1)
-                    return Response({'ret': 0, 'data':'Success'})
+                    order = TicketOrder.objects.filter(Q(ordernumber=ordernumber))
+                    rentorders = Rentorder.objects.filter(Q(order_id=order[0].id))
+                    if rentorders.count() > 0:
+                        rent_order_item_serializer = RentorderSerializer(instance=rentorders, many=True)
+                        rent_item = list(rent_order_item_serializer.data),
+                    else:
+                        rent_item = []
+                    order.update(ticket_checked=1)
+                    return Response({'ret': 0, 'data':rent_item})
                 else:
                     return Response({'ret': 422001,'errmsg':"已验票",'data':None})
             else:
