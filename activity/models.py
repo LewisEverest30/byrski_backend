@@ -362,7 +362,7 @@ class TicketSerializer1(serializers.ModelSerializer):
         return obj.activity.activity_template.id
 
     def get_activity_name(self, obj):
-        # todo 增加hotel
+        # todo-f 增加hotel
         if obj.hotel is None:
             return obj.activity.activity_template.name
         else:
@@ -417,7 +417,7 @@ class TicketSerializer2(serializers.ModelSerializer):
         return obj.activity.activity_template.id
 
     def get_name(self, obj):
-        # todo 增加hotel
+        # todo-f 增加hotel
         if obj.hotel is None:
             return obj.activity.activity_template.name
         else:

@@ -521,7 +521,7 @@ class OrderSerializer3(serializers.ModelSerializer):
     original_price = serializers.CharField(source='ticket.original_price')
     
     def get_activity_name(self, obj):
-        # todo 增加hotel
+        # todo-f 增加hotel
         if obj.ticket.hotel is None:
             return obj.ticket.activity.activity_template.name
         else:
@@ -574,7 +574,7 @@ class OrderSerializer4(serializers.ModelSerializer):
             return None
 
     def get_activity_name(self, obj):
-        # todo 增加hotel
+        # todo-f 增加hotel
         if obj.ticket.hotel is None:
             return obj.ticket.activity.activity_template.name
         else:

@@ -239,7 +239,6 @@ class get_all_itinerary(APIView):
         
 
 # 获取行程的详情
-# todo 返程
 class get_detail_of_certain_itinerary(APIView):
     authentication_classes = [MyJWTAuthentication, ]
 

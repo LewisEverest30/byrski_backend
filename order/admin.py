@@ -115,7 +115,7 @@ class BusAdmin(admin.ModelAdmin, ExportExcelMixin):
     # readonly_fields = ('max_people', )
     list_display_links = ['activity']
     list_filter = ("activity", )
-    # todo 修复search
+    # todo-f 修复search
     search_fields = ('activity__activity_template__name', 'car_number', 'driver_phone')
     actions = ['export_as_excel']
     inlines = [Bus_boarding_timeInline, LeaderItineraryInline,]
@@ -131,7 +131,7 @@ class BusAdmin(admin.ModelAdmin, ExportExcelMixin):
 class Bus_boarding_timeAdmin(admin.ModelAdmin, ExportExcelMixin):
     list_display = ("id", "bus", 'loc', 'boarding_peoplenum', 'time')
     readonly_fields = ("bus", 'loc', 'boarding_peoplenum')
-    # todo 修复search
+    # todo-f 修复search
     search_fields = ('bus__activity__activity_template__name', 'bus__car_number', 'bus__driver_phone')
     actions = ['export_as_excel']
 
@@ -180,7 +180,7 @@ class LeaderItineraryAdmin(admin.ModelAdmin, ExportOrderExcelMixin):
     actions = ['export_as_excel']
 
     list_filter = ('bus__activity__activity_begin_date',)
-    # todo 修复search
+    # todo-f 修复search
     search_fields = ('user__name', 'bus__activity__activity_template__name', 'bus_loc__loc__school__name',
                      'bus_loc__loc__campus', 'bus_loc__loc__busboardloc')
 
@@ -188,4 +188,4 @@ class LeaderItineraryAdmin(admin.ModelAdmin, ExportOrderExcelMixin):
 admin.site.register(Bus, BusAdmin)
 admin.site.register(Bus_boarding_time, Bus_boarding_timeAdmin)
 admin.site.register(TicketOrder, TicketOrderAdmin)
-admin.site.register(LeaderItinerary, LeaderItineraryAdmin)  # todo
+admin.site.register(LeaderItinerary, LeaderItineraryAdmin)

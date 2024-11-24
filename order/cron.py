@@ -30,7 +30,6 @@ AREA_Beijing = {1: "Haidian",
 
 # 活动截止报名之时
 def set_activity_expire():
-    # todo 替换为logger
     
     print ('================ SET ACTIVITY EXPIRE ',str(datetime.datetime.now()), '================')
     # 将到期的活动设为不可报名
@@ -79,7 +78,7 @@ def set_activity_locked():
         cancel_unpaid_order(acti.id)
 
         # 退款每个活动中的无效订单（已付款但没有上车点）
-        # todo 调java接口退款
+        # todo-f 调java接口退款
         refund_invalid_order(acti.id)
 
         # 锁定订单（如果日期设置没问题，这里不会出现未锁定的订单）
@@ -155,7 +154,7 @@ def set_activity_locked():
             # 为每辆车分配订单
             for bus in bus_list:
                 # 创建车辆
-                # todo 容量是bus的哪个属性？ carry_peoplenum应该等于？
+                # todo-f 容量是bus的哪个属性？ carry_peoplenum应该等于？
                 newbus = Bus.objects.create(activity_id=acti.id, carry_peoplenum=bus.capity-bus.empty_seats, max_people=bus.capity)
 
                 # 遍历这辆车经过的各个点，创建车辆-上车点-时间对应
