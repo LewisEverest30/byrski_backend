@@ -56,6 +56,7 @@ urlpatterns = [
 
     path('python/get_ticket_order_list_by_type', get_ticket_order_list_by_type.as_view()),
         path('python/get_detail_of_certain_ticket_order', get_detail_of_certain_ticket_order.as_view()),
+        path('python/get_ticket_checked_of_certain_ticket_order', get_ticket_checked_of_certain_ticket_order.as_view()),
     path('python/cancel_ticket_order', cancel_ticket_order.as_view()),
     path('python/delete_ticket_order', delete_ticket_order.as_view()),
 

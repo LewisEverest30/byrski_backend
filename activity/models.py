@@ -371,8 +371,8 @@ class TicketSerializer1(serializers.ModelSerializer):
     def get_begin_end(self, obj):
         begin_date_raw = obj.activity.activity_begin_date
         end_date_raw = obj.activity.activity_end_date
-        begin_date = begin_date_raw.strftime('%m月%d日')
-        end_date = end_date_raw.strftime('%m月%d日')
+        begin_date = begin_date_raw.strftime('%Y年%m月%d日')
+        end_date = end_date_raw.strftime('%Y年%m月%d日')
         begin_day = WEEKDAY_MAP[begin_date_raw.strftime('%A')]
         end_day = WEEKDAY_MAP[end_date_raw.strftime('%A')]
 
@@ -432,8 +432,8 @@ class TicketSerializer2(serializers.ModelSerializer):
     def get_begin_end(self, obj):
         begin_date_raw = obj.activity.activity_begin_date
         end_date_raw = obj.activity.activity_end_date
-        begin_date = begin_date_raw.strftime('%m月%d日')
-        end_date = end_date_raw.strftime('%m月%d日')
+        begin_date = begin_date_raw.strftime('%Y年%m月%d日')
+        end_date = end_date_raw.strftime('%Y年%m月%d日')
         begin_day = WEEKDAY_MAP[begin_date_raw.strftime('%A')]
         end_day = WEEKDAY_MAP[end_date_raw.strftime('%A')]
 

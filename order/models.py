@@ -347,7 +347,7 @@ class OrderSerializerItinerary2(serializers.ModelSerializer):
 
     def get_begin_date(self, obj):
         begin_date_raw = obj.ticket.activity.activity_begin_date
-        begin_date = begin_date_raw.strftime('%m月%d日')
+        begin_date = begin_date_raw.strftime('%Y年%m月%d日')
         return begin_date
     def get_boardingloc(self, obj):
         if obj.bus_loc is None or obj.bus_loc.loc is None:
@@ -529,7 +529,7 @@ class OrderSerializer3(serializers.ModelSerializer):
 
     def get_begin_date(self, obj):
         begin_date_raw = obj.ticket.activity.activity_begin_date
-        begin_date = begin_date_raw.strftime('%m月%d日')
+        begin_date = begin_date_raw.strftime('%Y年%m月%d日')
         return begin_date
 
     def get_cover(self, obj):
@@ -561,6 +561,10 @@ class OrderSerializer4(serializers.ModelSerializer):
     can_refund = serializers.SerializerMethodField()
 
     rent_order = serializers.SerializerMethodField()
+    
+    create_time = serializers.SerializerMethodField()
+    pay_time = serializers.SerializerMethodField()
+    
     def get_rent_order(self, obj):
         rent_order_item = Rentorder.objects.filter(order_id=obj.id)
         if rent_order_item.count() > 0:
@@ -619,11 +623,23 @@ class OrderSerializer4(serializers.ModelSerializer):
 
     def get_begin_date(self, obj):
         begin_date_raw = obj.ticket.activity.activity_begin_date
-        begin_date = begin_date_raw.strftime('%m月%d日')
+        begin_date = begin_date_raw.strftime('%Y年%m月%d日')
         return begin_date
 
     def get_cover(self, obj):
         return settings.MEDIA_URL + str(obj.ticket.activity.activity_template.ski_resort.cover)
+
+    def get_create_time(self, obj):
+        if obj.create_time is None:
+            return None
+        else:
+            return obj.create_time.strftime('%Y-%m-%d %H:%M:%S')
+    
+    def get_pay_time(self, obj):
+        if obj.pay_time is None:
+            return None
+        else:
+            return obj.pay_time.strftime('%Y-%m-%d %H:%M:%S')
 
     class Meta:
         model = TicketOrder
@@ -699,7 +715,7 @@ class LeaderItinerarySerializer2(serializers.ModelSerializer):
 
     def get_begin_date(self, obj):
         begin_date_raw = obj.bus.activity.activity_begin_date
-        begin_date = begin_date_raw.strftime('%m月%d日')
+        begin_date = begin_date_raw.strftime('%Y年%m月%d日')
         return begin_date
     def get_boardingloc(self, obj):
         if obj.bus_loc is None or obj.bus_loc.loc is None:

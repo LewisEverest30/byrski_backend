@@ -667,8 +667,40 @@ class delete_ticket_order(APIView):
             return Response({'ret': 421501, 'errmsg': '其他错误'})
 
 
+# 获取某个订单是否以及验票
+class get_ticket_checked_of_certain_ticket_order(APIView):
+    authentication_classes = [MyJWTAuthentication, ]
+
+    def post(self,request,*args,**kwargs):
+        userid = request.user['userid']
+        info = json.loads(request.body)
+
+        try:
+            order_id = info['order_id']
+            order = TicketOrder.objects.get(Q(id=order_id) & ~Q(status=6))              
+            return Response({'ret':0, 'data':order.ticket_checked})
+        except Exception as e:
+            print(repr(e))
+            return Response({'ret': 421801, 'data':None})
 
 # ================================二维码验证相关================================
+# 获取某个订单是否以及验票
+class get_ticket_checked_of_certain_ticket_order(APIView):
+    authentication_classes = [MyJWTAuthentication, ]
+
+    def post(self,request,*args,**kwargs):
+        userid = request.user['userid']
+        info = json.loads(request.body)
+
+        try:
+            order_id = info['order_id']
+            order = TicketOrder.objects.get(Q(id=order_id) & ~Q(status=6))              
+            return Response({'ret':0, 'data':order.ticket_checked})
+        except Exception as e:
+            print(repr(e))
+            return Response({'ret': 421801, 'data':None})
+
+# 获取用于验票的二维码
 class get_itinerary_qrcode(APIView):
     authentication_classes = [MyJWTAuthentication, ]
     def post(self,request,*args,**kwargs):
@@ -712,7 +744,7 @@ class verify_itinerary_qrcode(APIView):
                     rentorders = Rentorder.objects.filter(Q(order_id=order[0].id))
                     if rentorders.count() > 0:
                         rent_order_item_serializer = RentorderSerializer(instance=rentorders, many=True)
-                        rent_item = list(rent_order_item_serializer.data),
+                        rent_item = list(rent_order_item_serializer.data)
                     else:
                         rent_item = []
                     order.update(ticket_checked=1)
