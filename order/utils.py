@@ -56,11 +56,9 @@ def refund_invalid_order(activity_id: int):
     # with transaction.atomic():
     # bug: 加锁可能导致java无法设置订单状态
     # 已付款，但没上车点 =》退票
-    # refund_orders = TicketOrder.objects.filter(ticket__activity_id=activity_id,
-    #                                                 status=2,
-    #                                                 bus_loc__isnull=True)
-    
-    refund_orders = TicketOrder.objects.filter(id=6)
+    refund_orders = TicketOrder.objects.filter(ticket__activity_id=activity_id,
+                                                    status=2,
+                                                    bus_loc__isnull=True)
     for order in refund_orders:
         # order.status = 4
         # order.save()
