@@ -14,17 +14,18 @@ STAFF_NUM = 1
 VEHICLE_CAPACITY_DEFAULT = [37,47]     # 车辆容量
 VEHICLE_COST_DEFAULT = [3200, 3800]   # 费用
 AREA_Beijing = {1: "Haidian", 
-                15: "Shunyi", 
-                5: "Fengtai", 
-                14: "Tongzhou", 
-                2: "Changping", 
-                13: "Huairou",  
-                12: "Daxing", 
-                11: "Shijingshan", 
-                10: "Fangshan", 
-                9: "Miyun", 
+                2: "Changping",
+                3: "Fengtai",
                 7: "Xicheng", 
-                8: "Dongcheng"}
+                8: "Dongcheng",
+                9: "Miyun",
+                10: "Fangshan",
+                11: "Shijingshan",
+                12: "Daxing", 
+                13: "Huairou",
+                14: "Tongzhou", 
+                15: "Shunyi", 
+                }
 
 
 
