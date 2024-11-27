@@ -308,7 +308,7 @@ class try_refund_ticket_order(APIView):
             # 用户积分-K
             User.objects.filter(id=userid).update(points=F('points')-USER_POINTS_INCREASE_DELTA)
             # 用户节省金额-差价
-            User.objects.filter(id=userid).update(saved_money=F('saved_money')-(order.ticket.original_price - order.cost))
+            User.objects.filter(id=userid).update(saved_money=F('saved_money')-(order.ticket.original_price - order.cost_ticket))
             
             return Response({'ret': 0, 'errmsg': None})
 
@@ -628,7 +628,7 @@ class cancel_ticket_order(APIView):
             # 用户积分-K
             User.objects.filter(id=userid).update(points=F('points')-USER_POINTS_INCREASE_DELTA)
             # 用户节省金额-差价
-            User.objects.filter(id=userid).update(saved_money=F('saved_money')-(order.ticket.original_price - order.cost))
+            User.objects.filter(id=userid).update(saved_money=F('saved_money')-(order.ticket.original_price - order.cost_ticket))
 
             return Response({'ret': 0, 'errmsg': None})
 

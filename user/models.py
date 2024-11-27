@@ -171,6 +171,7 @@ class UserSerializerHomepage(serializers.ModelSerializer):
     school = serializers.SerializerMethodField()
     register_days = serializers.SerializerMethodField()
     leadtimes = serializers.SerializerMethodField()
+    saved_money = serializers.SerializerMethodField()
 
     def get_school(self, obj):
         # if obj.identity == 1:
@@ -197,6 +198,12 @@ class UserSerializerHomepage(serializers.ModelSerializer):
         else:
             return None
     
+    def get_saved_money(self, obj):
+        if obj.saved_money < 0:
+            return 0
+        else:
+            return obj.saved_money
+        
     class Meta:
         model = User
         fields = ['id', 'name', 'school', 'identity', 'is_student',

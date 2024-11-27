@@ -155,7 +155,7 @@ class Bus:
 
 
 # 获取最优价格车辆
-def get_initial_bus_combos(N, C_A, P_A, C_B, P_B,):
+def get_initial_bus_combos(N, C_A, P_A, C_B, P_B):
    
     def optimal_bus_combos(N, C_A, P_A, C_B, P_B, a_count=0, b_count=0, alpha=1.0, memo=None):
         if memo is None:
@@ -325,6 +325,11 @@ def plan_route_by_station(bus_list,reserved_seats=0):
             ex_bus = find_exchange_bus(bus_list,min_station, min_pnum)
             exchange_bus(opt_bus,ex_bus,min_station)
             min_station, min_pnum = opt_bus.get_min_station()
+            if ex_bus:
+                exchange_bus(opt_bus,ex_bus,min_station)
+                min_station, min_pnum = opt_bus.get_min_station()
+            else:
+                break
 
     new_buses = optimize_buses(bus_list)
     for idx, bus in enumerate(new_buses):

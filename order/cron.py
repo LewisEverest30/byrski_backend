@@ -86,6 +86,11 @@ def set_activity_locked():
         lock_order(acti.id)
 
 
+    # bug-f 不加下面这行就会导致前面对acti_objs的操作无效
+    # acti_objs = Activity.objects.filter(id__in=acti_objs_id)
+    # 或者这样⬇️
+    for acti in acti_objs:
+        acti.refresh_from_db()
     # 挨个活动生成乘车信息
     for acti in acti_objs:
         print(f'# trying to run the departure allocation program(BRM) for activity#{acti.id}')
@@ -107,7 +112,7 @@ def set_activity_locked():
         area_loc_info = {}  # 所有区域的上车点信息
         # 每辆车都只在区域内接人，不会跨区拼车
         for area in area_info:
-            print(f'  # trying to run the departure allocation program(BRM) for area#{area["loc__area_id"]}')
+            # print(f'  # trying to run the departure allocation program(BRM) for area#{area["loc__area_id"]}')
             area_id = area['loc__area_id']
             area_input_name = AREA_Beijing[area_id]
             # total_people_num = area['total_people_num']
@@ -119,23 +124,30 @@ def set_activity_locked():
             area_loc_info[area_input_name] = loc_info_dict
 
         # 获取分车信息(banrenma)
-        print('====BRM START====')
+        # todo 处理异常
+        print('  ====BRM START====')
         # print('    total_people_num:', total_people_num)
-        print('area_loc_info:', area_loc_info)
-        print('vehicle_capacity:', vehicle_capacity)
-        print('vehicle_costs:', vehicle_costs)
-        bus_allocation_objs = plan_route_top(area_loc_info, vehicle_capacity, vehicle_costs)
+        print('  area_loc_info:', area_loc_info)
+        print('  vehicle_capacity:', vehicle_capacity)
+        print('  vehicle_costs:', vehicle_costs)
+        try:
+            bus_allocation_objs = plan_route_top(area_loc_info, vehicle_capacity, vehicle_costs)
+        except Exception as e:
+            print(f'  ! fail to run the BRM for activity#{acti.id} due to', repr(e))
+            print('  ====BRM END====')
+            continue
         bus_list = []
         for areabus in bus_allocation_objs:
             bus_list += areabus.bus_list
             print('    areabus:', areabus)
-        print('====BRM END====')
+        print('  ====BRM END====')
 
         # 为活动的所有订单分配车辆
         # 查询该活动当前区域内所有订单，并按上车点排序，得到上车点id为key，订单列表为value的字典
         with transaction.atomic():
             # all_related_orders = TicketOrder.objects.select_for_update().filter(Q(ticket__activity_id=acti.id) & Q(bus_loc__loc__area_id=area_id) & ~Q(status=6)).order_by('bus_loc__choice_peoplenum')
-            all_related_orders = TicketOrder.objects.select_for_update().filter(Q(ticket__activity_id=acti.id) & ~Q(status=6)).order_by('bus_loc__choice_peoplenum')
+            # bug-f 只查询锁票了的订单，其他订单不要分车
+            all_related_orders = TicketOrder.objects.select_for_update().filter(Q(ticket__activity_id=acti.id) & Q(status=3)).order_by('bus_loc__choice_peoplenum')
             # if total_people_num != all_related_orders.count():
             #     print ('Wrong people num(total_people_num != all_related_orders.count)')
             #     print (f'    total_people_num={total_people_num} all_related_orders.count={all_related_orders.count()}')

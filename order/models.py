@@ -140,7 +140,7 @@ class TicketOrder(models.Model):
                 # 用户积分-K
                 User.objects.filter(id=order.user.id).update(points=F('points')-USER_POINTS_INCREASE_DELTA)
                 # 用户节省金额-差价
-                User.objects.filter(id=order.user.id).update(saved_money=F('saved_money')-(order.ticket.original_price - order.cost))
+                User.objects.filter(id=order.user.id).update(saved_money=F('saved_money')-(order.ticket.original_price - order.cost_ticket))
 
     @classmethod
     def set_orders_finished(cls):
