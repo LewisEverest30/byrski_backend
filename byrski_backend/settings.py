@@ -82,8 +82,7 @@ WSGI_APPLICATION = 'byrski_backend.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'byrski_v1',   # 数据库名
-        # 'NAME': 'byrski_test',   # 数据库名
+        'NAME': 'byrski_test',   # 数据库名
         'USER': 'wsb',    # 数据库 用户名
         'PASSWORD': 'wang13261910095',# 数据库 用户密码
         'HOST': '127.0.0.1', # 数据库服务主机名
@@ -129,8 +128,8 @@ USE_TZ = False
 STATIC_URL = 'static/'
 STATIC_ROOT = '/root/byrski_backend_static/static'
 
-MEDIA_URL = 'static/media/'
-MEDIA_ROOT = '/root/byrski_backend_static/static/media'
+MEDIA_URL = 'static/media_test/'
+MEDIA_ROOT = '/root/byrski_backend_static/static/media_test'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
@@ -140,7 +139,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 APPID ='wx535c7daf241afe7e'
 APPSECRET = '8a5eb086d8d0e0e087189ed4d614141d'
 
-SECRET_KEY = 'd916dac1-e79a-11eb-a95c-14f6d8e4b492'
+SECRET_KEY = 'd916dac1-e79a-11eb-a95c-14f6d8e4b499'
 
 CRONJOBS = [
     ('0 */1 * * *', 'user.cron.update_access_token', '>> ' + '/root/byrski_backend_crontab_logs/update_access_token.log'),
