@@ -3,7 +3,7 @@ from rest_framework import serializers
 from django.utils.translation import gettext_lazy as _
 from django.core.validators import MinValueValidator
 from django.conf import settings
-from django.db.models import Min
+from django.db.models import Min, Sum
 from django.core.exceptions import ValidationError
 
 from .utils import SERVICES
@@ -204,7 +204,7 @@ class ActivityWxGroup(models.Model):
     update_time = models.DateTimeField(verbose_name='修改时间', auto_now=True)
 
     def __str__(self) -> str:
-        return f'{self.activity}'
+        return f'{self.activity} #{self.id}'
 
     class Meta:
         verbose_name = "微信群二维码"
@@ -226,6 +226,10 @@ class Bustype(models.Model):
 
 # 雪票
 class Ticket(models.Model):
+    class Hotel_choices(models.IntegerChoices):
+        not_provide_allocation = 0, _('不提供分配')
+        provide_allocation = 1, _('提供分配')
+    
     activity = models.ForeignKey(verbose_name='活动', to=Activity, on_delete=models.PROTECT)
     intro = models.CharField(verbose_name='简介', max_length=25, null=True, blank=False)
     
@@ -233,6 +237,10 @@ class Ticket(models.Model):
                                 validators=[Validator_service, ],
                                 help_text='请使用空格分隔各个服务。可选服务有：'+SERVICE_STRING_SHOW)
     
+    hotel_type = models.IntegerField(verbose_name='住宿类型（是否提供分房服务）', null=False, blank=False, default=0,
+                                     choices=Hotel_choices.choices)
+    hotel = models.CharField(verbose_name='酒店', max_length=25, null=True, blank=True)
+
     price = models.DecimalField(verbose_name='单价', null=False, blank=False, max_digits=7, decimal_places=2,
                                 validators=[MinValueValidator(1)])    
     original_price = models.DecimalField(verbose_name='原价', null=True, blank=False, max_digits=7, decimal_places=2,
@@ -249,6 +257,22 @@ class Ticket(models.Model):
         verbose_name = "票"
         verbose_name_plural = "票"
 
+
+class Rentprice(models.Model):
+    activity = models.ForeignKey(verbose_name='活动', to=Activity, on_delete=models.PROTECT)
+
+    name = models.CharField(verbose_name='雪具名称', max_length=50, null=False, blank=False)
+    price = models.DecimalField(verbose_name='价格（整个活动时间的总价，不分天数）', max_digits=5, decimal_places=2, null=False, blank=False)
+    deposit = models.DecimalField(verbose_name='押金', max_digits=5, decimal_places=2, null=False, blank=False)
+
+
+    def __str__(self) -> str:
+        return f'{self.name} -- {self.price}元'
+
+    class Meta:
+        verbose_name = "雪具租赁信息"
+        verbose_name_plural = "雪具租赁信息"
+        unique_together = (("activity", "name",),)
 
 
 
@@ -299,6 +323,18 @@ class SkiresortSerializer3(serializers.ModelSerializer):
         fields = ['location', 'cover', 'pics']
 
 
+# 用于获取雪具租赁信息
+class RentpriceSerializer(serializers.ModelSerializer):
+    rent_item_id = serializers.IntegerField(source='id')
+    days = serializers.SerializerMethodField()
+    def get_days(self, obj):
+        return obj.activity.activity_template.duration_days
+    
+    class Meta:
+        model = Rentprice
+        fields = ['rent_item_id', 'name', 'price', 'deposit', 'days']
+
+
 WEEKDAY_MAP = {
     "Monday": "周一",
     "Tuesday": "周二",
@@ -308,7 +344,7 @@ WEEKDAY_MAP = {
     "Saturday": "周六",
     "Sunday": "周日"
 }
-# 用于获取滑雪场详细信息
+# 用于获取滑雪场下面的所有票
 class TicketSerializer1(serializers.ModelSerializer):
     ticket_id = serializers.SerializerMethodField()
     activity_id = serializers.SerializerMethodField()
@@ -326,13 +362,17 @@ class TicketSerializer1(serializers.ModelSerializer):
         return obj.activity.activity_template.id
 
     def get_activity_name(self, obj):
-        return obj.activity.activity_template.name
+        # todo-f 增加hotel
+        if obj.hotel is None:
+            return obj.activity.activity_template.name
+        else:
+            return obj.activity.activity_template.name + ' | ' + obj.hotel
 
     def get_begin_end(self, obj):
         begin_date_raw = obj.activity.activity_begin_date
         end_date_raw = obj.activity.activity_end_date
-        begin_date = begin_date_raw.strftime('%m月%d日')
-        end_date = end_date_raw.strftime('%m月%d日')
+        begin_date = begin_date_raw.strftime('%Y年%m月%d日')
+        end_date = end_date_raw.strftime('%Y年%m月%d日')
         begin_day = WEEKDAY_MAP[begin_date_raw.strftime('%A')]
         end_day = WEEKDAY_MAP[end_date_raw.strftime('%A')]
 
@@ -356,6 +396,16 @@ class TicketSerializer2(serializers.ModelSerializer):
     begin_end = serializers.SerializerMethodField()
     service = serializers.SerializerMethodField()
     cover = serializers.SerializerMethodField()
+    hotel = serializers.SerializerMethodField()
+
+    rent_info = serializers.SerializerMethodField()
+    def get_rent_info(self, obj):
+        rent_item = Rentprice.objects.filter(activity=obj.activity)
+        if rent_item.count() > 0:
+            rent_item_serializer = RentpriceSerializer(instance=rent_item, many=True)
+            return rent_item_serializer.data
+        else:
+            return []
 
     def get_ticket_id(self, obj):
         return obj.id
@@ -367,13 +417,23 @@ class TicketSerializer2(serializers.ModelSerializer):
         return obj.activity.activity_template.id
 
     def get_name(self, obj):
-        return obj.activity.activity_template.name
+        # todo-f 增加hotel
+        if obj.hotel is None:
+            return obj.activity.activity_template.name
+        else:
+            return obj.activity.activity_template.name + ' | ' + obj.hotel
+
+    def get_hotel(self, obj):
+        if obj.hotel is None:
+            return None
+        else:
+            return obj.hotel
 
     def get_begin_end(self, obj):
         begin_date_raw = obj.activity.activity_begin_date
         end_date_raw = obj.activity.activity_end_date
-        begin_date = begin_date_raw.strftime('%m月%d日')
-        end_date = end_date_raw.strftime('%m月%d日')
+        begin_date = begin_date_raw.strftime('%Y年%m月%d日')
+        end_date = end_date_raw.strftime('%Y年%m月%d日')
         begin_day = WEEKDAY_MAP[begin_date_raw.strftime('%A')]
         end_day = WEEKDAY_MAP[end_date_raw.strftime('%A')]
 
@@ -393,7 +453,10 @@ class TicketSerializer2(serializers.ModelSerializer):
 
     class Meta:
         model = Ticket
-        fields = ['ticket_id', 'activity_id', 'activitytemplate_id', 'name', 'service', 'cover', 'begin_end', 'price', 'original_price']
+        fields = ['ticket_id', 'activity_id', 'activitytemplate_id', 
+                  'name', 'service', 'cover', 'begin_end', 
+                  'price', 'original_price', 'hotel', 'hotel_type', 
+                  'rent_info']
 
 
 # 用于获取模板详情

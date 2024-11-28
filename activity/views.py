@@ -36,19 +36,34 @@ class get_homepage(APIView):
             activities = []
             ski_resorts = Skiresort.objects.all()
             for ski_resort in ski_resorts:
-                activity_found = Activity.objects.filter(activity_template__ski_resort_id=ski_resort.id,
-                                                         status=0).order_by('activity_begin_date')    # 当前雪场下可以报名的最近要开始的
+                # 筛选活动结束日期在今天以前
+                activity_found = Activity.objects.filter(activity_template__ski_resort_id=ski_resort.id, 
+                                                         activity_end_date__lt=datetime.date.today()).order_by('activity_begin_date')
+                # activity_found = Activity.objects.filter(activity_template__ski_resort_id=ski_resort.id,
+                #                                          status=0).order_by('activity_begin_date')    # 当前雪场下可以报名的最近要开始的
                 if activity_found.count() == 0:
-                    continue
-                skiresort_serializer_data = SkiresortSerializer1(instance=ski_resort, many=False).data
-                activities.append({
-                    'skiresort_id': ski_resort.id,
-                    'skiresort_name': skiresort_serializer_data['name'],
-                    'skiresort_area': ski_resort.area.city_name+ski_resort.area.area_name,
-                    'begin_date': activity_found[0].activity_begin_date.strftime('%Y年%m月%d日'),
-                    'cover': skiresort_serializer_data['cover'],
-                    'min_price': skiresort_serializer_data['min_price'],
-                })
+                    activity_found = Activity.objects.filter(activity_template__ski_resort_id=ski_resort.id, 
+                                                            ).order_by('-create_time')
+                    skiresort_serializer_data = SkiresortSerializer1(instance=ski_resort, many=False).data
+                    activities.append({
+                        'skiresort_id': ski_resort.id,
+                        'skiresort_name': skiresort_serializer_data['name'],
+                        'skiresort_area': ski_resort.area.city_name+ski_resort.area.area_name,
+                        'begin_date': activity_found[0].activity_begin_date.strftime('%Y年%m月%d日'),
+                        'cover': skiresort_serializer_data['cover'],
+                        'min_price': skiresort_serializer_data['min_price'],
+                    })
+
+                else:
+                    skiresort_serializer_data = SkiresortSerializer1(instance=ski_resort, many=False).data
+                    activities.append({
+                        'skiresort_id': ski_resort.id,
+                        'skiresort_name': skiresort_serializer_data['name'],
+                        'skiresort_area': ski_resort.area.city_name+ski_resort.area.area_name,
+                        'begin_date': activity_found[0].activity_begin_date.strftime('%Y年%m月%d日'),
+                        'cover': skiresort_serializer_data['cover'],
+                        'min_price': skiresort_serializer_data['min_price'],
+                    })
 
             # 根据字典的begin_date对activities排序
             activities.sort(key=lambda x: datetime.datetime.strptime(x['begin_date'], '%Y年%m月%d日'))

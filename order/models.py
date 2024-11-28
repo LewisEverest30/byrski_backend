@@ -11,7 +11,7 @@ from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 
 from user.models import User, Leader, LeaderSerializer
-from activity.models import Ticket, ActivityWxGroup, Activity, Boardingloc
+from activity.models import Ticket, ActivityWxGroup, Activity, Boardingloc, Rentprice
 from activity.utils import ACTIVITY_GUIDE
 
 WXGROUP_MAX_NUM = 180
@@ -104,6 +104,8 @@ class TicketOrder(models.Model):
     pay_time = models.DateTimeField(verbose_name='付款时间', null=True)
     status = models.IntegerField(verbose_name='订单状态', null=False, default=1, choices=Status_choices.choices)
 
+    cost_ticket = models.DecimalField(verbose_name='购票费用', null=False, blank=False, max_digits=7, decimal_places=2, default=0,)
+    cost_rent = models.DecimalField(verbose_name='租赁费用', null=False, blank=False, max_digits=7, decimal_places=2, default=0,)
     def __str__(self) -> str:
         return self.ordernumber
     
@@ -138,7 +140,7 @@ class TicketOrder(models.Model):
                 # 用户积分-K
                 User.objects.filter(id=order.user.id).update(points=F('points')-USER_POINTS_INCREASE_DELTA)
                 # 用户节省金额-差价
-                User.objects.filter(id=order.user.id).update(saved_money=F('saved_money')-(order.ticket.original_price - order.cost))
+                User.objects.filter(id=order.user.id).update(saved_money=F('saved_money')-(order.ticket.original_price - order.cost_ticket))
 
     @classmethod
     def set_orders_finished(cls):
@@ -147,6 +149,23 @@ class TicketOrder(models.Model):
             today = timezone.now().date()
             cls.objects.select_for_update().filter(ticket__activity__activity_end_date__lt=today).update(return_boarded=True)
 
+
+class Rentorder(models.Model):
+    user = models.ForeignKey(verbose_name='用户', to=User, on_delete=models.CASCADE, null=False, blank=False)
+    order = models.ForeignKey(verbose_name='对应活动订单', to=TicketOrder, on_delete=models.CASCADE, null=False, blank=False)
+
+    rent_item = models.ForeignKey(verbose_name='租赁项目', to=Rentprice, on_delete=models.PROTECT, null=False, blank=False)
+
+    rent_days = models.IntegerField(verbose_name='租赁天数', null=False, blank=False, validators=[MinValueValidator(1)])
+    # cost = models.DecimalField(verbose_name='实付款', null=False, blank=False, max_digits=7, decimal_places=2,
+    #                             validators=[MinValueValidator(1)])    
+
+    # status 直接取order的status
+    # is_active = models.BooleanField(verbose_name='是否有效(活动订单是否付款)', default=False)
+
+    class Meta:
+        verbose_name = "租赁单"
+        verbose_name_plural = "租赁单"
 
 
 # 领队行程
@@ -209,7 +228,8 @@ class OrderSerializer2(serializers.ModelSerializer):
     ski_resort_name = serializers.CharField(source='ticket.activity.activity_template.ski_resort.name')
     location = serializers.CharField(source='ticket.activity.activity_template.ski_resort.location')
     ski_resort_phone = serializers.CharField(source='ticket.activity.activity_template.ski_resort.phone')
-    
+    hotel = serializers.SerializerMethodField()
+
     from_area = serializers.CharField(source='bus_loc.loc.area.area_name')
     to_area = serializers.CharField(source='ticket.activity.activity_template.ski_resort.area.area_name')
 
@@ -240,9 +260,15 @@ class OrderSerializer2(serializers.ModelSerializer):
         actiwxgroup = obj.wxgroup.qrcode
         return settings.MEDIA_URL + str(actiwxgroup)
 
+    def get_hotel(self, obj):
+        if obj.ticket.hotel is None:
+            return None
+        else:
+            return obj.ticket.hotel
+
     class Meta:
         model = TicketOrder
-        fields = ['ski_resort_name', 'location', 'ski_resort_phone', 
+        fields = ['ski_resort_name', 'location', 'ski_resort_phone', 'hotel',
                   'from_area', 'to_area', 'boardingloc', 'boardingtime',
                   'name', 'gender', 'phone', 'qrcode']
 
@@ -268,7 +294,10 @@ class OrderSerializerItinerary1(serializers.ModelSerializer):
         if obj.bus_loc is None or obj.bus_loc.loc is None:
             return None
         else:
-            return obj.bus_loc.loc.school.name + obj.bus_loc.loc.campus + obj.bus_loc.loc.busboardloc
+            if obj.status == 3:  # 已锁票
+                return obj.bus_loc.loc.school.name + obj.bus_loc.loc.campus + obj.bus_loc.loc.busboardloc
+            else:  # 未锁票
+                return obj.bus_loc.loc.school.name + obj.bus_loc.loc.campus + obj.bus_loc.loc.busboardloc + '(待定)'
     def get_boardingtime(self, obj):
         if obj.bus_time is None or obj.bus_time.time is None:
             return None
@@ -290,6 +319,7 @@ class OrderSerializerItinerary2(serializers.ModelSerializer):
     begin_date = serializers.SerializerMethodField()
     to_area = serializers.CharField(source='ticket.activity.activity_template.ski_resort.area.area_name')
     ticket_intro = serializers.CharField(source='ticket.intro')
+    hotel = serializers.SerializerMethodField()
 
     boardingtime = serializers.SerializerMethodField()
     arrivaltime = serializers.SerializerMethodField()
@@ -307,10 +337,17 @@ class OrderSerializerItinerary2(serializers.ModelSerializer):
     boardingloc_available = serializers.SerializerMethodField()
 
     itinerary_status = serializers.SerializerMethodField()
+    is_activity_expired = serializers.SerializerMethodField()
+
+    def get_hotel(self, obj):
+        if obj.ticket.hotel is None:
+            return None
+        else:
+            return obj.ticket.hotel
 
     def get_begin_date(self, obj):
         begin_date_raw = obj.ticket.activity.activity_begin_date
-        begin_date = begin_date_raw.strftime('%m月%d日')
+        begin_date = begin_date_raw.strftime('%Y年%m月%d日')
         return begin_date
     def get_boardingloc(self, obj):
         if obj.bus_loc is None or obj.bus_loc.loc is None:
@@ -400,15 +437,15 @@ class OrderSerializerItinerary2(serializers.ModelSerializer):
         #     return 6
         else:                                                                   # 其他时间内
             if obj.go_boarded == False:  # 去程还未上车
-                bus_datetime = datetime.combine(
-                    obj.ticket.activity.activity_begin_date,  # 活动开始日期
-                    obj.bus_time.time  # 预计上车时间
-                )
-                # print(bus_datetime)
-                # print(timezone.now() + timedelta(minutes=30))
-                # print(bus_datetime < (timezone.now() + timedelta(minutes=30)))
-                if obj.bus_time is not None and obj.bus_time.time is not None and bus_datetime < (timezone.now() + timedelta(minutes=30)):  # 上车时间还没到
-                    return 2
+                if obj.bus_time is not None and obj.bus_time.time is not None :
+                    bus_datetime = datetime.combine(
+                        obj.ticket.activity.activity_begin_date,  # 活动开始日期
+                        obj.bus_time.time  # 预计上车时间
+                    )
+                    if bus_datetime < (timezone.now() + timedelta(minutes=30)):  # 上车时间半小时内
+                        return 2
+                    else:
+                        return 0
                 else:
                     return 0
             else:                        # 上车了
@@ -423,12 +460,19 @@ class OrderSerializerItinerary2(serializers.ModelSerializer):
                 else:  # 去程上车了，且返程未上车，且已经完成验票，且处在活动指引中
                     return 4
 
+    def get_is_activity_expired(self, obj):
+        if obj.ticket.activity.status >= 1:
+            return True
+        else:
+            return False
+        
+    
     class Meta:
         model = TicketOrder
         fields = ['activity_id', 'ordernumber', 'name', 'ski_resort_location', 'begin_date', 'busnumber',
-                  'to_area', 'ticket_intro', 'boardingtime', 'arrivaltime',
+                  'to_area', 'ticket_intro', 'boardingtime', 'arrivaltime', 'hotel',
                   'boardingloc', 'arrivalloc', 'return_time', 'return_loc', 'schedule', 'attention',
-                  'qrcode', 'leader_info', 'boardingloc_available', 'itinerary_status']
+                  'qrcode', 'leader_info', 'boardingloc_available', 'itinerary_status', 'is_activity_expired']
 
 
 class BusSerializer(serializers.ModelSerializer):
@@ -456,17 +500,36 @@ class BusSerializer(serializers.ModelSerializer):
 
 
 # ===================================订单相关====================================
+# 用于获取雪具租赁单信息
+class RentorderSerializer(serializers.ModelSerializer):
+    rent_order_item_id = serializers.IntegerField(source='id')
+
+    name = serializers.CharField(source='rent_item.name')
+    price = serializers.CharField(source='rent_item.price')
+    deposit = serializers.CharField(source='rent_item.deposit')
+    
+    class Meta:
+        model = Rentorder
+        fields = ['rent_order_item_id', 'name', 'price', 'deposit', 'rent_days']
+
 # 用于订单列表
 class OrderSerializer3(serializers.ModelSerializer):
-    activity_name = serializers.CharField(source='ticket.activity.activity_template.name')
+    activity_name = serializers.SerializerMethodField()
     begin_date = serializers.SerializerMethodField()
     intro = serializers.CharField(source='ticket.intro')
     cover = serializers.SerializerMethodField()
     original_price = serializers.CharField(source='ticket.original_price')
+    
+    def get_activity_name(self, obj):
+        # todo-f 增加hotel
+        if obj.ticket.hotel is None:
+            return obj.ticket.activity.activity_template.name
+        else:
+            return obj.ticket.activity.activity_template.name + ' | ' + obj.ticket.hotel
 
     def get_begin_date(self, obj):
         begin_date_raw = obj.ticket.activity.activity_begin_date
-        begin_date = begin_date_raw.strftime('%m月%d日')
+        begin_date = begin_date_raw.strftime('%Y年%m月%d日')
         return begin_date
 
     def get_cover(self, obj):
@@ -483,7 +546,7 @@ class OrderSerializer4(serializers.ModelSerializer):
     # status_description = serializers.SerializerMethodField()
     pay_ddl = serializers.SerializerMethodField()
 
-    activity_name = serializers.CharField(source='ticket.activity.activity_template.name')
+    activity_name = serializers.SerializerMethodField()
     begin_date = serializers.SerializerMethodField()
     intro = serializers.CharField(source='ticket.intro')
     cover = serializers.SerializerMethodField()
@@ -496,6 +559,30 @@ class OrderSerializer4(serializers.ModelSerializer):
 
     status = serializers.SerializerMethodField()
     can_refund = serializers.SerializerMethodField()
+
+    rent_order = serializers.SerializerMethodField()
+    
+    create_time = serializers.SerializerMethodField()
+    pay_time = serializers.SerializerMethodField()
+    
+    def get_rent_order(self, obj):
+        rent_order_item = Rentorder.objects.filter(order_id=obj.id)
+        if rent_order_item.count() > 0:
+            rent_order_item_serializer = RentorderSerializer(instance=rent_order_item, many=True)
+            return {
+                'rent_order_item': list(rent_order_item_serializer.data),
+                'total_price': rent_order_item.aggregate(Sum('rent_item__price'))['rent_item__price__sum'],
+                'total_deposit': rent_order_item.aggregate(Sum('rent_item__deposit'))['rent_item__deposit__sum']
+            }
+        else:
+            return None
+
+    def get_activity_name(self, obj):
+        # todo-f 增加hotel
+        if obj.ticket.hotel is None:
+            return obj.ticket.activity.activity_template.name
+        else:
+            return obj.ticket.activity.activity_template.name + ' | ' + obj.ticket.hotel
 
     def get_status(self, obj):
         if obj.status == 3 and obj.return_boarded == True:  # 已完成=已锁票+返程已上车
@@ -536,18 +623,30 @@ class OrderSerializer4(serializers.ModelSerializer):
 
     def get_begin_date(self, obj):
         begin_date_raw = obj.ticket.activity.activity_begin_date
-        begin_date = begin_date_raw.strftime('%m月%d日')
+        begin_date = begin_date_raw.strftime('%Y年%m月%d日')
         return begin_date
 
     def get_cover(self, obj):
         return settings.MEDIA_URL + str(obj.ticket.activity.activity_template.ski_resort.cover)
+
+    def get_create_time(self, obj):
+        if obj.create_time is None:
+            return None
+        else:
+            return obj.create_time.strftime('%Y-%m-%d %H:%M:%S')
+    
+    def get_pay_time(self, obj):
+        if obj.pay_time is None:
+            return None
+        else:
+            return obj.pay_time.strftime('%Y-%m-%d %H:%M:%S')
 
     class Meta:
         model = TicketOrder
         fields = ['id', 'status', 'pay_ddl', 'activity_name', 'begin_date', 'intro', 
                   'cover', 'original_price', 'cost', 'status','can_refund',
                 #   'status_description',
-                  'name', 'gender', 'phone', 'idnumber', 
+                  'name', 'gender', 'phone', 'idnumber', 'cost_rent', 'rent_order',
                   'ordernumber', 'create_time', 'pay_time', 'ticket_id']
 
 
@@ -616,7 +715,7 @@ class LeaderItinerarySerializer2(serializers.ModelSerializer):
 
     def get_begin_date(self, obj):
         begin_date_raw = obj.bus.activity.activity_begin_date
-        begin_date = begin_date_raw.strftime('%m月%d日')
+        begin_date = begin_date_raw.strftime('%Y年%m月%d日')
         return begin_date
     def get_boardingloc(self, obj):
         if obj.bus_loc is None or obj.bus_loc.loc is None:

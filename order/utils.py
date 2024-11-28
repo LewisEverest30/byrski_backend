@@ -1,6 +1,7 @@
 from django.db.models import Sum, F
 from django.db import transaction
 import requests
+import json
 
 from .models import TicketOrder, USER_POINTS_INCREASE_DELTA
 from user.models import User
@@ -23,11 +24,12 @@ def cancel_unpaid_order(activity_id: int):
             Activity.objects.filter(id=order.ticket.activity.id).update(current_participant=F('current_participant')-1)
             Ticket.objects.filter(id=order.ticket.id).update(sales=F('sales')-1)
             User.objects.filter(id=order.user.id).update(points=F('points')-USER_POINTS_INCREASE_DELTA)
-            User.objects.filter(id=order.user.id).update(saved_money=F('saved_money')-(order.ticket.original_price - order.cost))
+            User.objects.filter(id=order.user.id).update(saved_money=F('saved_money')-(order.ticket.original_price - order.cost_ticket))
     print(f'$ {len(unpaid_orders)} orders have been canceled')
 
 
 # 检查某个活动涉及的上车点是否符合下限要求
+# todo 处理异常
 def delete_invaild_boardingloc(activity_id: int):
     print(f'# deleting invalid boardingloc of activity#{activity_id}')
     # 区域下限检查
@@ -39,18 +41,25 @@ def delete_invaild_boardingloc(activity_id: int):
             area_people_num = this_area_boardingloc.aggregate(total=Sum('choice_peoplenum'))['total'] or 0
             if area_people_num < limit.lower_limit:  # 区域内各个上车点总人数少于区域下限
                 this_area_boardingloc_id = [b.id for b in this_area_boardingloc]
-                this_area_boardingloc.delete()  # 删除这些上车点
-                print(f'$ delete unsatisfied area limit boardingloc#{this_area_boardingloc_id} of area#{limit.area.id}')
+                try:
+                    this_area_boardingloc.delete()  # 删除这些上车点
+                    print(f'$ delete unsatisfied area limit boardingloc#{this_area_boardingloc_id} of area#{limit.area.id}')
+                except Exception as e:
+                    print(f'! fail to delete unsatisfied area limit boardingloc#{this_area_boardingloc_id} of area#{limit.area.id} due to {repr(e)}')
     # 上车点下限检查
     with transaction.atomic():
         bad_boardingloc = Boardingloc.objects.select_for_update().filter(activity_id=activity_id,
                                                     choice_peoplenum__lt=F('target_peoplenum'))
         bad_boardingloc_id = [b.id for b in bad_boardingloc]
-        bad_boardingloc.delete()
-        print(f'$ delete unsatisfied loc limit boardingloc#{bad_boardingloc_id}')
+        try:
+            bad_boardingloc.delete()
+            print(f'$ delete unsatisfied loc limit boardingloc#{bad_boardingloc_id}')
+        except Exception as e:
+            print(f'! fail to delete unsatisfied loc limit boardingloc#{bad_boardingloc_id} due to {repr(e)}')
 
 
 # 退款无效的订单
+# todo 处理异常
 def refund_invalid_order(activity_id: int):
     print(f'# trying to refund invalid order of activity#{activity_id}')
     # with transaction.atomic():
@@ -64,17 +73,38 @@ def refund_invalid_order(activity_id: int):
         # order.save()
 
         # todo 调java退款
-        java_refund_response = requests.post(url=f'https://gxski.top/java/api/payment/wechat/refund/call?outTradeNo={order.ordernumber}')
-        java_refund_response_json = java_refund_response.json()
-        if 'code' in java_refund_response_json and java_refund_response_json['code'] == 0:
-            print(f'    $ success to refund order#{order.id}')
-        else:
-            print(f'    $ fail to refund order#{order.id} due to {java_refund_response_json}')
+        print(f'  # try to refund order#{order.id}')
+        try:
+            java_refund_response = requests.post(url=f'https://gxski.top/java/api/payment/wechat/refund/call?outTradeNo={order.ordernumber}')
+            if java_refund_response.status_code == 200:
+                if java_refund_response.text:
+                    java_refund_response_json = java_refund_response.json()
+                    # 处理 JSON 响应
+                    if 'code' in java_refund_response_json and java_refund_response_json['code'] == 0:
+                        print(f'  $ success to refund order#{order.id}')
+                    else:
+                        print(f'  ! fail to refund order#{order.id} due to {java_refund_response_json}')
+                        order.status = 4
+                        order.save()
+
+                else:
+                    print(f"  ! fail to refund order#{order.id} due to empty response received from refund API")
+                    order.status = 4
+                    order.save()
+            else:
+                print(f"  ! fail to refund order#{order.id} due to refund API status code: {java_refund_response.status_code}")
+                order.status = 4
+                order.save()
+        except Exception as e:
+            print(f"  ! fail to refund order#{order.id} due to other Exception: {repr(e)}")
+            order.status = 4
+            order.save()
 
         Activity.objects.filter(id=order.ticket.activity.id).update(current_participant=F('current_participant')-1)
         Ticket.objects.filter(id=order.ticket.id).update(sales=F('sales')-1)
         User.objects.filter(id=order.user.id).update(points=F('points')-USER_POINTS_INCREASE_DELTA)
-        User.objects.filter(id=order.user.id).update(saved_money=F('saved_money')-(order.ticket.original_price - order.cost))
+        User.objects.filter(id=order.user.id).update(saved_money=F('saved_money')-(order.ticket.original_price - order.cost_ticket))
+    
     print(f'$ {len(refund_orders)} orders have been refunded')
 
 

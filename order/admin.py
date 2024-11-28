@@ -37,12 +37,22 @@ class ExportOrderExcelMixin(object):
         response['Content-Disposition'] = f'attachment; filename={meta.object_name}.xlsx'
         wb = Workbook()
         ws = wb.active
-        ws.append(['订单号', '报名人', '身份证号', '手机号', '性别', '学校', '上车点', '实付金额', '雪场名称', '活动名称',
-                   '活动开始日期', '活动结束日期'
+        ws.append(['订单号', '报名人', '身份证号', '手机号', '性别', '学校', 
+                   '上车点', '实付金额', '雪场名称', '活动名称',
+                   '活动开始日期', '活动结束日期',
+                   '租赁金额', '租赁内容'
                 #    , '', '', '', '', 
                    ])
         for obj in queryset:
             if obj.status==2 or obj.status==3:
+                if obj.cost_rent == 0:
+                    rent_order_item_str = ''
+                else:
+                    rent_order_item_str = ''
+                    rent_order_relates = Rentorder.objects.filter(order_id=obj.id)
+                    for rent_order in rent_order_relates:
+                        rent_order_item_str += f'{rent_order.rent_item.name}({rent_order.rent_days}天)、'
+                    rent_order_item_str = rent_order_item_str[:-1]
                 data = [
                     f'{obj.ordernumber}',
                     f'{obj.user.name}',
@@ -56,6 +66,8 @@ class ExportOrderExcelMixin(object):
                     f'{obj.ticket.activity.activity_template.name}',
                     f'{obj.ticket.activity.activity_begin_date}',
                     f'{obj.ticket.activity.activity_end_date}',
+                    f'{obj.cost_rent}',
+                    f'{rent_order_item_str}',
                     ]
                 row = ws.append(data)
 
@@ -103,7 +115,7 @@ class BusAdmin(admin.ModelAdmin, ExportExcelMixin):
     # readonly_fields = ('max_people', )
     list_display_links = ['activity']
     list_filter = ("activity", )
-    # todo 修复search
+    # todo-f 修复search
     search_fields = ('activity__activity_template__name', 'car_number', 'driver_phone')
     actions = ['export_as_excel']
     inlines = [Bus_boarding_timeInline, LeaderItineraryInline,]
@@ -115,16 +127,34 @@ class BusAdmin(admin.ModelAdmin, ExportExcelMixin):
     #             itinerary.bus_loc_id = 1
     #             itinerary.save()
 
-
 # 每次活动的大巴车-所经站点-时间-没站搭载人数
 class Bus_boarding_timeAdmin(admin.ModelAdmin, ExportExcelMixin):
     list_display = ("id", "bus", 'loc', 'boarding_peoplenum', 'time')
     readonly_fields = ("bus", 'loc', 'boarding_peoplenum')
-    # todo 修复search
+    # todo-f 修复search
     search_fields = ('bus__activity__activity_template__name', 'bus__car_number', 'bus__driver_phone')
     actions = ['export_as_excel']
 
+# 租赁单内联
+class RentorderInline(admin.TabularInline):
+    model = Rentorder
+    fields = ('get_rent_item_name', 'get_rent_item_price', 'get_rent_item_deposit', 'rent_days')
+    extra = 0
+    can_delete = False  # 禁止删除
+    readonly_fields = ('get_rent_item_name', 'get_rent_item_price', 'get_rent_item_deposit', 'rent_days')
+    can_add = False  # 禁止新增
 
+    def get_rent_item_name(self, obj):
+        return obj.rent_item.name
+    get_rent_item_name.short_description = '租赁项目名称'
+
+    def get_rent_item_price(self, obj):
+        return obj.rent_item.price
+    get_rent_item_price.short_description = '租赁项目价格'
+
+    def get_rent_item_deposit(self, obj):
+        return obj.rent_item.deposit
+    get_rent_item_deposit.short_description = '租赁项目押金'
 # 雪票订单
 class TicketOrderAdmin(admin.ModelAdmin, ExportOrderExcelMixin):
     list_display = ('id', "ordernumber", 'user', 'ticket', 'go_boarded', 'return_boarded', 'cost',
@@ -138,7 +168,9 @@ class TicketOrderAdmin(admin.ModelAdmin, ExportOrderExcelMixin):
     search_fields = ('user__name', 'ordernumber', 'ticket__activity__activity_template__name', 'bus_loc__loc__school__name',
                      'bus_loc__loc__campus', 'bus_loc__loc__busboardloc')
 
-
+    inlines = [
+        RentorderInline,
+    ]
 # 领队行程
 class LeaderItineraryAdmin(admin.ModelAdmin, ExportOrderExcelMixin):
     list_display = ('id', 'leader', 'bus', 'create_time', 'bus_loc')
@@ -148,7 +180,7 @@ class LeaderItineraryAdmin(admin.ModelAdmin, ExportOrderExcelMixin):
     actions = ['export_as_excel']
 
     list_filter = ('bus__activity__activity_begin_date',)
-    # todo 修复search
+    # todo-f 修复search
     search_fields = ('user__name', 'bus__activity__activity_template__name', 'bus_loc__loc__school__name',
                      'bus_loc__loc__campus', 'bus_loc__loc__busboardloc')
 
@@ -156,4 +188,4 @@ class LeaderItineraryAdmin(admin.ModelAdmin, ExportOrderExcelMixin):
 admin.site.register(Bus, BusAdmin)
 admin.site.register(Bus_boarding_time, Bus_boarding_timeAdmin)
 admin.site.register(TicketOrder, TicketOrderAdmin)
-admin.site.register(LeaderItinerary, LeaderItineraryAdmin)  # todo
+admin.site.register(LeaderItinerary, LeaderItineraryAdmin)
