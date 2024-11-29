@@ -11,7 +11,7 @@ from .auth import MyJWTAuthentication, create_token
 # from .utils import cal_snowboardsize
 
 
-TOKEN_EXPIRE_DAYS = 7
+TOKEN_EXPIRE_DAYS = 60
 class login(APIView):
     login_url_mod = 'https://api.weixin.qq.com/sns/jscode2session?appid={}&secret={}&js_code={}&grant_type=authorization_code'
 
@@ -42,7 +42,7 @@ class login(APIView):
         else:  # 已有该用户
             # 登录模式
             token_expire_time = timezone.now()+datetime.timedelta(days=TOKEN_EXPIRE_DAYS)
-            token = create_token(user_found[0])
+            token = create_token(user_found[0], expdays=TOKEN_EXPIRE_DAYS)
             # print(token)
             return Response({'ret': 0, 'errmsg': None, 'openid': oid, 'token': str(token), 
                              'is_student': user_found[0].is_student, 'identity': user_found[0].identity,
