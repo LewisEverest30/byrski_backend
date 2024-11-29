@@ -8,21 +8,23 @@ from rest_framework.views import APIView
 from user.models import User, Accesstoken
 from user.models import *
 from .auth import MyJWTAuthentication, create_token
-# from .utils import cal_snowboardsize
+from .utils import get_access_token
 
 
 TOKEN_EXPIRE_DAYS = 60
 class login(APIView):
     login_url_mod = 'https://api.weixin.qq.com/sns/jscode2session?appid={}&secret={}&js_code={}&grant_type=authorization_code'
+    get_phone_url_mod = 'https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token={}'
 
     def post(self,request,*args,**kwargs):
+
         info = json.loads(request.body)
-        login_code = info['code']
-        login_code_url = self.login_url_mod.format(settings.APPID, settings.APPSECRET, login_code)  # 构造url
-        login_response = requests.get(login_code_url)  # 向腾讯服务器发送登录请求
-        login_json = login_response.json()
 
         try:
+            login_code = info['login_code']
+            login_url = self.login_url_mod.format(settings.APPID, settings.APPSECRET, login_code)  # 构造url
+            login_response = requests.get(login_url)  # 向腾讯服务器发送登录请求
+            login_json = login_response.json()
             sessionkey = login_json['session_key']
             oid = login_json['openid']  # 获得的openid
         except Exception as e:
@@ -31,9 +33,35 @@ class login(APIView):
                              'is_student': None, 'identity': None,
                              'name': None, 'token_expire': None})
 
+        try:
+            wx_access_token = get_access_token()
+            get_phone_code = info['get_phone_code']
+            get_phone_url = self.get_phone_url_mod.format(wx_access_token)  # 构造url
+            post_data = {
+                'code': get_phone_code,
+            }
+            phone_response = requests.post(get_phone_url, json=post_data)  # 向腾讯服务器发送登录请求
+            phone_json = phone_response.json()
+            ret = phone_json['errcode']
+            if ret != 0:
+                errmsg = phone_json['errmsg']
+                return Response({'ret': 500003, 'errmsg': '获取手机号接口返回失败: '+errmsg, 'openid': None, 'token': None, 
+                             'is_student': None, 'identity': None,
+                             'name': None, 'token_expire': None})
+            else:
+                phone_info = phone_json['phone_info']
+                print(phone_info)
+        except Exception as e:
+            print(repr(e))
+            return Response({'ret': 500002, 'errmsg': '无法调用手机号接口', 'openid': None, 'token': None, 
+                             'is_student': None, 'identity': None,
+                             'name': None, 'token_expire': None})
+
+
         user_found = User.objects.filter(openid=oid)  # users表中是否已有该用户
+        
         if user_found.count() == 0:  # 没有该用户，尝试创建一条数据，并返回id
-            newuser = User.objects.create(openid=oid)
+            newuser = User.objects.create(openid=oid, phone=phone_info['purePhoneNumber'])
             token_expire_time = timezone.now()+datetime.timedelta(days=TOKEN_EXPIRE_DAYS)
             token = create_token(newuser, expdays=TOKEN_EXPIRE_DAYS)
             return Response({'ret': 0, 'errmsg': None, 'openid': oid, 'token': str(token), 
@@ -41,9 +69,13 @@ class login(APIView):
                              'name': newuser.name, 'token_expire': token_expire_time})
         else:  # 已有该用户
             # 登录模式
+            print(user_found[0].phone)
+            print(phone_info['purePhoneNumber'])
+            user_found[0].phone = phone_info['purePhoneNumber']
+            user_found[0].save()
+            print(user_found[0].phone)
             token_expire_time = timezone.now()+datetime.timedelta(days=TOKEN_EXPIRE_DAYS)
             token = create_token(user_found[0], expdays=TOKEN_EXPIRE_DAYS)
-            # print(token)
             return Response({'ret': 0, 'errmsg': None, 'openid': oid, 'token': str(token), 
                              'is_student': user_found[0].is_student, 'identity': user_found[0].identity,
                              'name': user_found[0].name, 'token_expire': token_expire_time})
@@ -54,38 +86,14 @@ class check_student(APIView):
     authentication_classes = [MyJWTAuthentication, ]
 
     checkstudent_url_mod = 'https://api.weixin.qq.com/intp/quickcheckstudentidentity?access_token={}'
-    getaccesstoken_url = 'https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={}&secret={}'.format(settings.APPID, settings.APPSECRET)
     def post(self,request,*args,**kwargs):
-        # 先获得access token
-        try:
-            at_obj = Accesstoken.objects.get(id=1)
-        except:
-            # 还没有access token
-            response = requests.get(self.getaccesstoken_url)  # 向腾讯服务器发送请求
-            jsrespon = response.json()
-            newtoken = jsrespon['access_token']
-            exp_in = jsrespon['expires_in']
-            at_obj = Accesstoken.objects.create(access_token=newtoken, expire_time=datetime.datetime.now()+datetime.timedelta(seconds=exp_in))
-            # return Response({'ret':0, 'acesstoken':model_to_dict(newat)})
-                
-        if at_obj.expire_time <= timezone.now():
-            # access token 过期了
-            response = requests.get(self.getaccesstoken_url)  # 向腾讯服务器发送请求
-            jsrespon = response.json()
-            newtoken = jsrespon['access_token']
-            exp_in = jsrespon['expires_in']
-            print('token过期', newtoken)
-            at_obj.access_token = newtoken
-            at_obj.expire_time = datetime.datetime.now()+datetime.timedelta(seconds=exp_in)
-            at_obj.save()
-            # return Response({'ret':0, 'acesstoken':model_to_dict(at_obj)})
-        
+        wx_access_token = get_access_token()
+
         # 进行学生认证
         info = json.loads(request.body)
         openid = request.user['openid']
         print(openid)
         code = info['code']
-        wx_access_token = at_obj.access_token
         post_data = {
             'openid': openid,
             'wx_studentcheck_code': code
@@ -153,7 +161,7 @@ class update_user_basic_info(APIView):
             ski_favor = info['ski_favor']   # 0基础 1刻滑 2平花 3公园 4野雪
 
 
-            user = User.objects.filter(id=userid).update(name=name, gender=gender, phone=phone, school_id=school_id,
+            User.objects.filter(id=userid).update(name=name, gender=gender, phone=phone, school_id=school_id,
                                                          height=height, weight=weight,
                                                          skiboots_size=skiboots_size, ski_board=ski_board,
                                                          ski_level=ski_level, ski_favor=ski_favor)
@@ -161,6 +169,22 @@ class update_user_basic_info(APIView):
         except Exception as e:
             print(repr(e))
             return Response({'ret': 400301, 'errmsg': '更新失败, 请检查提交的数据是否标准'})   
+
+
+class update_user_basic_info_homepage(APIView):
+    authentication_classes = [MyJWTAuthentication, ]
+    def post(self,request,*args,**kwargs):
+        userid = request.user['userid']
+        info = json.loads(request.body)
+        try:
+            name = info['name']
+            school_id = info['school_id']
+
+            User.objects.filter(id=userid).update(name=name, school_id=school_id)
+            return Response({'ret': 0, 'errmsg': None})   
+        except Exception as e:
+            print(repr(e))
+            return Response({'ret': 400401, 'errmsg': '更新失败, 请检查提交的数据是否标准'})   
 
 
 # --------------------------------下面的初版先不用-------------------------------------------

@@ -18,6 +18,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf.urls.static import static
 
+
 from user.views import *
 from activity.views  import *
 from order.views  import *
@@ -30,6 +31,7 @@ urlpatterns = [
     path('python/check_student', check_student.as_view()),
     path('python/get_user_basic_info', get_user_basic_info.as_view()),
     path('python/update_user_basic_info', update_user_basic_info.as_view()),
+    path('python/update_user_basic_info_homepage', update_user_basic_info_homepage.as_view()),
 
     path('python/get_homepage', get_homepage.as_view()),
     # path('python/get_tickets_of_homepage_activity', get_tickets_of_homepage_activity.as_view()),

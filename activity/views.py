@@ -214,5 +214,5 @@ class get_parner_school(APIView):
     authentication_classes = [MyJWTAuthentication, ]
 
     def get(self,request,*args,**kwargs):
-        all_school = School.objects.all().order_by('-id')
+        all_school = School.objects.all().order_by('name')
         return Response({'ret': 0, 'data': list(all_school.values())})

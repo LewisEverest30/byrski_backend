@@ -1,5 +1,42 @@
+import requests
+import datetime
+from django.utils import timezone
+from django.conf import settings
+
+from .models import Accesstoken
 
 
+GET_ACCESSTOKEN_URL = 'https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={}&secret={}'.format(settings.APPID, settings.APPSECRET)
+
+def get_access_token():
+    try:
+        at_obj = Accesstoken.objects.get(id=1)
+    except:
+        # 还没有access token
+        response = requests.get(GET_ACCESSTOKEN_URL)  # 向腾讯服务器发送请求
+        jsrespon = response.json()
+        newtoken = jsrespon['access_token']
+        exp_in = jsrespon['expires_in']
+        at_obj = Accesstoken.objects.create(access_token=newtoken, expire_time=datetime.datetime.now()+datetime.timedelta(seconds=exp_in))
+        return at_obj.access_token
+            
+    if at_obj.expire_time <= timezone.now():
+        # access token 过期了
+        response = requests.get(GET_ACCESSTOKEN_URL)  # 向腾讯服务器发送请求
+        jsrespon = response.json()
+        newtoken = jsrespon['access_token']
+        exp_in = jsrespon['expires_in']
+        print('token过期', newtoken)
+        at_obj.access_token = newtoken
+        at_obj.expire_time = datetime.datetime.now()+datetime.timedelta(seconds=exp_in)
+        at_obj.save()
+    return at_obj.access_token
+
+
+
+
+
+# ========================== 雪具相关 ==========================
 
 SNOWBOARD_SIZE_1 = [[146, 148, 151, 154, 155, 158, 159],
                     [147, 150, 152, 155, 156, 159, 160],
