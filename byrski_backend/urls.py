@@ -15,9 +15,8 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
 from django.conf.urls.static import static
-
 
 from user.views import *
 from activity.views  import *
@@ -93,4 +92,12 @@ urlpatterns = [
 
 ]
 
+urlpatterns += [
+    # bug 无法上传图片，f12查看network，发现url是404。原因有2：
+        # 1. 这里没有前缀，提交使用的接口访问不到
+        # 2. ckeditor5表单在提交图片时候会往CKEDITOR_5_FILE_UPLOAD_URL上提交，
+            # 需要settings里配置CKEDITOR_5_FILE_UPLOAD_URL = '/python/ckeditor5/upload/'
+    path("python/ckeditor5/", include('django_ckeditor_5.urls')),
+]
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

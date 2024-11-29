@@ -5,6 +5,8 @@ from django.core.validators import MinValueValidator
 from django.conf import settings
 from django.db.models import Min, Sum
 from django.core.exceptions import ValidationError
+from django_ckeditor_5.fields import CKEditor5Field
+from bs4 import BeautifulSoup
 
 from .utils import SERVICES
 from .utils import Validator_slope, Validator_schedule, SERVICE_STRING_SHOW, Validator_service
@@ -94,15 +96,21 @@ class ActivityTemplate(models.Model):
     ski_resort = models.ForeignKey(verbose_name='滑雪场', to=Skiresort, on_delete=models.PROTECT)
     name = models.CharField(verbose_name='活动票名', max_length=12, null=True, blank=False, help_text='示例：“金山岭两日住滑票” (12字以内)')
     duration_days = models.IntegerField(verbose_name='持续天数')
-    detail = models.TextField(verbose_name='活动详情', null=True, blank=False)
-    schedule = models.TextField(verbose_name='行程安排(详细说明)', null=True, blank=False)
-    attention = models.TextField(verbose_name='注意事项', null=True, blank=True)
-    notes = models.TextField(verbose_name='备注', null=True, blank=True)
-    leader_notice = models.TextField(verbose_name='领队须知', null=True, blank=False)
+    
+    # detail = models.TextField(verbose_name='活动详情', null=True, blank=False)
+    detail = CKEditor5Field(verbose_name='活动详情', null=True, blank=False)
+    # schedule = models.TextField(verbose_name='行程安排(详细说明)', null=True, blank=False)
+    schedule = CKEditor5Field(verbose_name='行程安排(详细说明)', null=True, blank=False)
+    # attention = models.TextField(verbose_name='注意事项', null=True, blank=True)
+    attention = CKEditor5Field(verbose_name='注意事项', null=True, blank=False)
+    # notes = models.TextField(verbose_name='备注', null=True, blank=True)
+    # notes = CKEditor5Field(verbose_name='备注', null=True, blank=True)
+    # leader_notice = models.TextField(verbose_name='领队须知', null=True, blank=False)
+    leader_notice = CKEditor5Field(verbose_name='领队须知', null=True, blank=False)
 
-    schedule_lite = models.CharField(verbose_name='行程安排文字简述 (该字段暂时弃用)', max_length=300, null=True, blank=True,
-                                validators=[Validator_schedule, ],
-                                help_text='请用形如这样的格式来表示行程安排: "第一天9点:出发 第一天11点:到达 第一天16点:返程"')
+    # schedule_lite = models.CharField(verbose_name='行程安排文字简述 (该字段暂时弃用)', max_length=300, null=True, blank=True,
+    #                             validators=[Validator_schedule, ],
+    #                             help_text='请用形如这样的格式来表示行程安排: "第一天9点:出发 第一天11点:到达 第一天16点:返程"')
 
     create_time = models.DateTimeField(verbose_name='创建时间', auto_now_add=True, null=True) 
     update_time = models.DateTimeField(verbose_name='修改时间', auto_now=True, null=True)
@@ -461,6 +469,28 @@ class TicketSerializer2(serializers.ModelSerializer):
 
 # 用于获取模板详情
 class ActivityTemplateSerializer(serializers.ModelSerializer):
+    detail = serializers.SerializerMethodField()
+    schedule = serializers.SerializerMethodField()
+    attention = serializers.SerializerMethodField()
+
+    def get_detail(self, obj):
+        soup = BeautifulSoup(obj.detail, 'html.parser')
+        for img in soup.find_all('img'):
+            img['src'] = settings.HOST_NAME + img['src']
+        return str(soup)
+    
+    def get_schedule(self, obj):
+        soup = BeautifulSoup(obj.schedule, 'html.parser')
+        for img in soup.find_all('img'):
+            img['src'] = settings.HOST_NAME + img['src']
+        return str(soup)
+    
+    def get_attention(self, obj):
+        soup = BeautifulSoup(obj.attention, 'html.parser')
+        for img in soup.find_all('img'):
+            img['src'] = settings.HOST_NAME + img['src']
+        return str(soup)
+
     class Meta:
         model = ActivityTemplate
         fields = ['name', 'detail', 'schedule', 'attention']
