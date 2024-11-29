@@ -9,6 +9,7 @@ from django.db import transaction
 from django.core.validators import MinValueValidator
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
+from bs4 import BeautifulSoup
 
 from user.models import User, Leader, LeaderSerializer
 from activity.models import Ticket, ActivityWxGroup, Activity, Boardingloc, Rentprice
@@ -329,8 +330,11 @@ class OrderSerializerItinerary2(serializers.ModelSerializer):
     return_time = serializers.SerializerMethodField()
     return_loc = serializers.CharField(source='ticket.activity.activity_return_loc')
 
-    schedule = serializers.CharField(source='ticket.activity.activity_template.schedule')
-    attention = serializers.CharField(source='ticket.activity.activity_template.attention')
+    # schedule = serializers.CharField(source='ticket.activity.activity_template.schedule')
+    # attention = serializers.CharField(source='ticket.activity.activity_template.attention')
+    schedule = serializers.SerializerMethodField()
+    attention = serializers.SerializerMethodField()
+
     qrcode = serializers.SerializerMethodField()
     leader_info = serializers.SerializerMethodField()
     
@@ -374,6 +378,18 @@ class OrderSerializerItinerary2(serializers.ModelSerializer):
             return None
         else:
             return obj.ticket.activity.activity_return_time.strftime('%H:%M')
+
+    def get_schedule(self, obj):
+        soup = BeautifulSoup(obj.ticket.activity.activity_template.schedule, 'html.parser')
+        for img in soup.find_all('img'):
+            img['src'] = settings.HOST_NAME + img['src']
+        return str(soup)
+    
+    def get_attention(self, obj):
+        soup = BeautifulSoup(obj.ticket.activity.activity_template.attention, 'html.parser')
+        for img in soup.find_all('img'):
+            img['src'] = settings.HOST_NAME + img['src']
+        return str(soup)
 
     def get_qrcode(self, obj):
         actiwxgroup = obj.wxgroup.qrcode
@@ -704,9 +720,12 @@ class LeaderItinerarySerializer2(serializers.ModelSerializer):
     return_time = serializers.SerializerMethodField()
     return_loc = serializers.CharField(source='bus.activity.activity_return_loc')
 
-    notice = serializers.CharField(source='bus.activity.activity_template.leader_notice')
-    schedule = serializers.CharField(source='bus.activity.activity_template.schedule')
-    attention = serializers.CharField(source='bus.activity.activity_template.attention')
+    # notice = serializers.CharField(source='bus.activity.activity_template.leader_notice')
+    # schedule = serializers.CharField(source='bus.activity.activity_template.schedule')
+    # attention = serializers.CharField(source='bus.activity.activity_template.attention')
+    notice = serializers.SerializerMethodField()
+    schedule = serializers.SerializerMethodField()
+    attention = serializers.SerializerMethodField()
 
     itinerary_status = serializers.SerializerMethodField()
 
@@ -779,7 +798,24 @@ class LeaderItinerarySerializer2(serializers.ModelSerializer):
             }
         return stop_set
 
-
+    def get_notice(self, obj):
+        soup = BeautifulSoup(obj.bus.activity.activity_template.leader_notice, 'html.parser')
+        for img in soup.find_all('img'):
+            img['src'] = settings.HOST_NAME + img['src']
+        return str(soup)
+    
+    def get_schedule(self, obj):
+        soup = BeautifulSoup(obj.bus.activity.activity_template.schedule, 'html.parser')
+        for img in soup.find_all('img'):
+            img['src'] = settings.HOST_NAME + img['src']
+        return str(soup)
+    
+    def get_attention(self, obj):
+        soup = BeautifulSoup(obj.bus.activity.activity_template.attention, 'html.parser')
+        for img in soup.find_all('img'):
+            img['src'] = settings.HOST_NAME + img['src']
+        return str(soup)
+    
     class Meta:
         model = LeaderItinerary
         fields = ['activity_name', 'ski_resort_location', 'begin_date', 'to_area', 
